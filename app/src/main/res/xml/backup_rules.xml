@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Include Room database files -->
+    <include domain="database" path="." />
+    <!-- Include internal app files (scanned documents, pages, crops) -->
+    <include domain="file" path="." />
+    <!-- Include shared preferences but exclude sensitive cloud sync credentials -->
+    <include domain="sharedpref" path="." />
+    <exclude domain="sharedpref" path="openscanner_cloud_sync.xml" />
+</full-backup-content>

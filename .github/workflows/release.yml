@@ -1,0 +1,148 @@
+name: ScanCraft Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release via GitHub Actions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradlew Executable
+        run: chmod +x gradlew
+
+      - name: Setup Signing Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::CRITICAL: KEYSTORE_BASE64 secret is not configured in repository secrets! Release builds strictly require the permanent production signing key."
+            exit 1
+          fi
+          echo "Restoring permanent release keystore from repository secrets..."
+          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+          if [ ! -s release.keystore ]; then
+            echo "::error::Decoded release.keystore is empty or corrupted!"
+            exit 1
+          fi
+          echo "Keystore verified successfully."
+
+      - name: Build Release APKs (Universal & ABI Splits)
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::CRITICAL: Missing signing secrets (KEYSTORE_PASSWORD, KEY_ALIAS, or KEY_PASSWORD). Release builds require complete credentials."
+            exit 1
+          fi
+          ./gradlew assembleRelease --stacktrace
+
+      - name: Clean Keystore from Runner
+        if: always()
+        run: rm -f release.keystore
+
+      - name: Prepare Release Artifacts & Checksums
+        id: prepare_artifacts
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ] || [ "$TAG" = "main" ]; then
+            TAG="${{ github.event.inputs.tag_name || 'v1.0.0' }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          mkdir -p release-output
+
+          # Copy and rename all release APKs (Universal & ABI Splits)
+          for apk in app/build/outputs/apk/release/*.apk; do
+            if [ -f "$apk" ]; then
+              base=$(basename "$apk" .apk)
+              suffix=$(echo "$base" | sed -e 's/^app-//' -e 's/-release$//')
+              outname="ScanCraft-${TAG}-${suffix}.apk"
+              cp "$apk" "release-output/${outname}"
+            fi
+          done
+
+          # Generate SHA-256 Checksum for each artifact
+          cd release-output
+          for apk in *.apk; do
+            if [ -f "$apk" ]; then
+              sha256sum "$apk" > "${apk}.sha256"
+            fi
+          done
+          cd ..
+
+          echo "Release artifacts ready:"
+          ls -lh release-output/
+
+      - name: Upload Release Artifacts to Workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScanCraft-${{ steps.prepare_artifacts.outputs.tag }}-APKs
+          path: release-output/*
+          retention-days: 30
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          name: ScanCraft ${{ steps.prepare_artifacts.outputs.tag }}
+          tag_name: ${{ steps.prepare_artifacts.outputs.tag }}
+          files: release-output/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ### 📄 ScanCraft Release ${{ steps.prepare_artifacts.outputs.tag }}
+            
+            Official Open Source Document Scanner released under the **GNU General Public License v3.0 (GPLv3)** by **@krinry**.
+            
+            #### 📦 Available Downloads:
+            - **Universal APK (`ScanCraft-${{ steps.prepare_artifacts.outputs.tag }}-universal.apk`)**: Compatible with all Android devices (`arm64-v8a`, `armeabi-v7a`, `x86_64`).
+            - **ABI Splits (Smaller download sizes)**:
+              - `ScanCraft-${{ steps.prepare_artifacts.outputs.tag }}-arm64-v8a.apk` — Modern 64-bit ARM devices (most modern phones).
+              - `ScanCraft-${{ steps.prepare_artifacts.outputs.tag }}-armeabi-v7a.apk` — 32-bit ARM devices.
+              - `ScanCraft-${{ steps.prepare_artifacts.outputs.tag }}-x86_64.apk` — x86_64 emulators / Chromebooks.
+            
+            #### 🌟 Highlights:
+            - **Privacy First & 100% Offline**: Zero analytics, zero ad SDKs, zero user tracking beacons.
+            - **Native Computer Vision**: High-speed document border detection and homography perspective warp.
+            - **Smart Filters**: Magic Color (CLAHE), Document B&W, Eco, Grayscale, Lighten, and manual brightness/contrast sliders.
+            - **On-Device OCR Engine**: Multi-script text recognition (Latin, Devanagari, Chinese, Japanese) with Google ML Kit.
+            - **PDF Studio**: Custom paper formats (A4, Letter, Legal), page reordering, compression, watermarks, encryption, and digital signatures.
+            - **Multi-Cloud & SAF Backup**: Direct support for Google Drive, Dropbox, OneDrive, WebDAV, and local storage.
+            
+            #### ℹ️ Package Details:
+            - **Author**: @krinry
+            - **Application ID**: `com.krinry.scancraft`
+            - **Minimum Android**: Android 8.0 (API 26)
+            - **Target Android**: Android 14+ (API 34/35)
+            - **License**: GNU General Public License v3.0 (GPLv3)

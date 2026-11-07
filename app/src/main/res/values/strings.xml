@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">ScanCraft</string>
+    <string name="camera_permission_required">Camera permission is required to scan documents.</string>
+    <string name="single_mode">Single</string>
+    <string name="batch_mode">Batch</string>
+    <string name="id_card_mode">ID Card</string>
+    <string name="qr_code_mode">QR Code</string>
+    <string name="book_mode">Book</string>
+    
+    <!-- Filter Names -->
+    <string name="filter_original">Original</string>
+    <string name="filter_magic_color">Magic Color</string>
+    <string name="filter_lighten">Lighten</string>
+    <string name="filter_bw">B&amp;W</string>
+    <string name="filter_bw2">B&amp;W 2</string>
+    <string name="filter_grayscale">Grayscale</string>
+    <string name="filter_eco">Eco</string>
+</resources>

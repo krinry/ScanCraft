@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="scancraft_primary">#076072</color>
+    <color name="scancraft_primary_light">#0CA4C0</color>
+    <color name="scancraft_primary_dark">#044450</color>
+    <color name="scanner_green">#076072</color>
+    <color name="scanner_bg">#0E1719</color>
+</resources>
