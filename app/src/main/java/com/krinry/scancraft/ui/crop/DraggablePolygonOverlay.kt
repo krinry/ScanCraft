@@ -42,6 +42,7 @@ fun DraggablePolygonOverlay(
     onHandleActive: (handlePoint: Offset?, touchPoint: Offset?) -> Unit = { _, _ -> },
     zoomScale: Float = 1f,
     onTransform: (zoomChange: Float, panChange: Offset) -> Unit = { _, _ -> },
+    onSwipe: ((isNext: Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val currentQuad by rememberUpdatedState(quad)
@@ -49,6 +50,7 @@ fun DraggablePolygonOverlay(
     val currentOnQuadChanged by rememberUpdatedState(onQuadChanged)
     val currentOnHandleActive by rememberUpdatedState(onHandleActive)
     val currentOnTransform by rememberUpdatedState(onTransform)
+    val currentOnSwipe by rememberUpdatedState(onSwipe)
     val currentZoomScale by rememberUpdatedState(zoomScale)
 
     var activeHandleIndex by remember { mutableIntStateOf(-1) }
@@ -122,6 +124,10 @@ fun DraggablePolygonOverlay(
                     var isMultiTouch = false
                     var prevPinchDistance = 0f
                     var prevPinchCentroid = Offset.Zero
+                    var totalSwipeDx = 0f
+                    var totalSwipeDy = 0f
+                    var swipeTriggered = false
+                    var bodyDragStarted = false
 
                     do {
                         val event = awaitPointerEvent()
@@ -154,10 +160,32 @@ fun DraggablePolygonOverlay(
                             lastTouchX = currentPos.x
                             lastTouchY = currentPos.y
 
+                            // If not touching a specific corner/edge handle (0..7), classify between horizontal page swipe and body drag
+                            if (selectedHandle < 0 && currentOnSwipe != null && currentZoomScale <= 1.05f) {
+                                totalSwipeDx += dx
+                                totalSwipeDy += dy
+                                val threshold = 40.dp.toPx()
+                                val dragSlop = 16.dp.toPx()
+
+                                if (!swipeTriggered && !bodyDragStarted) {
+                                    if (kotlin.math.abs(totalSwipeDx) > threshold &&
+                                        kotlin.math.abs(totalSwipeDx) > kotlin.math.abs(totalSwipeDy) * 1.2f) {
+                                        swipeTriggered = true
+                                        currentOnSwipe?.invoke(totalSwipeDx < 0f)
+                                    } else if (kotlin.math.abs(totalSwipeDy) > dragSlop ||
+                                        (kotlin.math.abs(totalSwipeDx) > dragSlop && kotlin.math.abs(totalSwipeDy) > kotlin.math.abs(totalSwipeDx))) {
+                                        // Predominantly vertical or diagonal movement beyond slop -> classify as body drag
+                                        bodyDragStarted = true
+                                    }
+                                }
+                            }
+
+                            val canMoveBody = (activeHandleIndex in 0..7) || bodyDragStarted || currentOnSwipe == null || currentZoomScale > 1.05f
+
                             if (activeHandleIndex == 9) {
                                 change.consume()
                                 currentOnTransform(1f, Offset(dx, dy))
-                            } else if (activeHandleIndex in 0..8) {
+                            } else if (activeHandleIndex in 0..8 && !swipeTriggered && canMoveBody) {
                                 change.consume()
                                 val curQ = currentQuad
                                 val b = currentBounds

@@ -1,5 +1,6 @@
 package com.krinry.scancraft.ui.viewer.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,9 +26,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 
 @Composable
 fun ViewerBottomBar(
@@ -38,8 +41,11 @@ fun ViewerBottomBar(
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = ScannerTheme.colors
+
     Surface(
-        color = Color(0xFF121212),
+        color = colors.surface,
+        border = BorderStroke(0.5.dp, colors.cardBorder),
         tonalElevation = 8.dp,
         modifier = modifier.fillMaxWidth()
     ) {
@@ -47,7 +53,7 @@ fun ViewerBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -71,7 +77,7 @@ fun ViewerBottomBar(
             Box(
                 modifier = Modifier
                     .weight(1.1f)
-                    .padding(horizontal = 4.dp),
+                    .padding(horizontal = 2.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -83,7 +89,7 @@ fun ViewerBottomBar(
                             indication = ripple(bounded = true, color = ScannerGreen),
                             onClick = onShareClick
                         )
-                        .padding(vertical = 4.dp, horizontal = 8.dp)
+                        .padding(vertical = 4.dp, horizontal = 6.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -102,10 +108,12 @@ fun ViewerBottomBar(
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = "Share",
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -136,13 +144,15 @@ private fun ViewerBottomActionItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = ScannerTheme.colors
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true, color = Color.White.copy(alpha = 0.2f)),
+                indication = ripple(bounded = true, color = colors.primary.copy(alpha = 0.2f)),
                 onClick = onClick
             )
             .padding(vertical = 6.dp, horizontal = 2.dp)
@@ -150,17 +160,18 @@ private fun ViewerBottomActionItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = Color(0xFFD6D6D6),
+            tint = colors.textPrimary,
             modifier = Modifier.size(23.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
-            color = Color(0xFFD6D6D6),
+            color = colors.textSecondary,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

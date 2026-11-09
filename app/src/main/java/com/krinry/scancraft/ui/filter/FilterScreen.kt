@@ -43,6 +43,7 @@ fun FilterScreen(
         viewModel.init(imagePath, borderStr)
     }
 
+    val colors = ScannerTheme.colors
     val previewBitmap by viewModel.previewBitmap.collectAsState()
     val selectedMode by viewModel.selectedMode.collectAsState()
     val brightness by viewModel.brightness.collectAsState()
@@ -54,10 +55,10 @@ fun FilterScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Enhance", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = { Text("Enhance", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
                     }
                 },
                 actions = {
@@ -84,13 +85,14 @@ fun FilterScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface)
             )
         },
         bottomBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFF141414)
+                color = colors.surface,
+                border = BorderStroke(0.5.dp, colors.cardBorder)
             ) {
                 Column(
                     modifier = Modifier
@@ -113,13 +115,13 @@ fun FilterScreen(
                                 Surface(
                                     modifier = Modifier.size(52.dp),
                                     shape = CircleShape,
-                                    color = if (isSelected) ScannerGreenContainer else Color(0xFF242424),
-                                    border = if (isSelected) BorderStroke(2.5.dp, ScannerGreen) else BorderStroke(1.dp, Color(0xFF404040))
+                                    color = if (isSelected) ScannerGreenContainer else colors.surfaceSecondary,
+                                    border = if (isSelected) BorderStroke(2.5.dp, ScannerGreen) else BorderStroke(1.dp, colors.cardBorder)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Text(
                                             text = mode.shortCode,
-                                            color = if (isSelected) ScannerGreen else Color.White,
+                                            color = if (isSelected) ScannerGreen else colors.textPrimary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp
                                         )
@@ -128,7 +130,7 @@ fun FilterScreen(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = mode.displayName,
-                                    color = if (isSelected) ScannerGreen else Color.LightGray,
+                                    color = if (isSelected) ScannerGreen else colors.textSecondary,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 12.sp
                                 )
@@ -147,16 +149,17 @@ fun FilterScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF262626),
+                            color = colors.surfaceSecondary,
+                            border = BorderStroke(0.5.dp, colors.cardBorder),
                             modifier = Modifier.clickable { showAdjustDialog = true }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                             ) {
-                                Icon(Icons.Default.Tune, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Tune, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Tone Adjustments", color = Color.White, fontSize = 12.sp)
+                                Text("Tone Adjustments", color = colors.textPrimary, fontSize = 12.sp)
                             }
                         }
                     }
@@ -168,7 +171,7 @@ fun FilterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.Black),
+                .background(colors.background),
             contentAlignment = Alignment.Center
         ) {
             previewBitmap?.let { bmp ->
@@ -186,17 +189,17 @@ fun FilterScreen(
     if (showAdjustDialog) {
         ModalBottomSheet(
             onDismissRequest = { showAdjustDialog = false },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                Text("Fine-Tune Paper Tones", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Fine-Tune Paper Tones", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Brightness: $brightness", color = Color.LightGray, fontSize = 14.sp)
+                Text("Brightness: $brightness", color = colors.textSecondary, fontSize = 14.sp)
                 Slider(
                     value = brightness.toFloat(),
                     onValueChange = { viewModel.setBrightness(it.toInt()) },
@@ -204,12 +207,12 @@ fun FilterScreen(
                     colors = SliderDefaults.colors(
                         thumbColor = ScannerGreen,
                         activeTrackColor = ScannerGreen,
-                        inactiveTrackColor = Color.DarkGray
+                        inactiveTrackColor = colors.cardBorder
                     )
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Contrast: $contrast", color = Color.LightGray, fontSize = 14.sp)
+                Text("Contrast: $contrast", color = colors.textSecondary, fontSize = 14.sp)
                 Slider(
                     value = contrast.toFloat(),
                     onValueChange = { viewModel.setContrast(it.toInt()) },
@@ -217,7 +220,7 @@ fun FilterScreen(
                     colors = SliderDefaults.colors(
                         thumbColor = ScannerGreen,
                         activeTrackColor = ScannerGreen,
-                        inactiveTrackColor = Color.DarkGray
+                        inactiveTrackColor = colors.cardBorder
                     )
                 )
 
@@ -227,7 +230,7 @@ fun FilterScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = ScannerGreen),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Apply")
+                    Text("Apply", color = Color.White)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }

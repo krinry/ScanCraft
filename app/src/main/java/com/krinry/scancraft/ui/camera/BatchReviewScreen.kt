@@ -427,13 +427,14 @@ fun BatchReviewScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     BatchActionButton(
                         icon = Icons.Outlined.Cameraswitch,
                         label = "Retake",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             currentItem?.let { item ->
                                 onRemoveItem(item.id)
@@ -445,6 +446,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.Outlined.AddBox,
                         label = "Add",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             onClose()
                         }
@@ -453,6 +455,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.AutoMirrored.Filled.RotateLeft,
                         label = "Left",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             currentItem?.let { item ->
                                 warpedBaseCache = warpedBaseCache - item.id
@@ -465,6 +468,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.AutoMirrored.Filled.RotateRight,
                         label = "Right",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             currentItem?.let { item ->
                                 warpedBaseCache = warpedBaseCache - item.id
@@ -477,6 +481,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.Outlined.Crop,
                         label = "Crop",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             cropEditingItem = currentItem
                         }
@@ -830,21 +835,38 @@ fun BatchReviewScreen(
         )
     }
 
-    // Modal Crop Screen for Batch Item
+    // Modal Crop Screen for Batch Items
     cropEditingItem?.let { item ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
+            val cropItems = remember(batchQueue) {
+                batchQueue.map {
+                    com.krinry.scancraft.ui.crop.CropItem(
+                        id = it.id,
+                        imagePath = it.rawFilePath,
+                        initialQuad = it.cropQuad,
+                        rotationDegrees = it.rotationDegrees
+                    )
+                }
+            }
+            val initialIdx = batchQueue.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
             com.krinry.scancraft.ui.crop.CropScreen(
-                imagePath = item.rawFilePath,
+                items = cropItems,
+                initialIndex = initialIdx,
                 docId = docId,
-                initialQuad = item.cropQuad,
-                rotationDegrees = item.rotationDegrees,
+                onBatchCropConfirmed = { quadsMap ->
+                    quadsMap.forEach { (itemId, newQuad) ->
+                        onUpdateCropQuad(itemId, newQuad)
+                        warpedBaseCache = warpedBaseCache - itemId
+                        previewDisplayCache = previewDisplayCache - itemId
+                    }
+                    cropEditingItem = null
+                },
                 onCropConfirmed = { newQuad ->
                     onUpdateCropQuad(item.id, newQuad)
-                    // Invalidate caches so preview re-warps immediately with new quad
                     warpedBaseCache = warpedBaseCache - item.id
                     previewDisplayCache = previewDisplayCache - item.id
                     cropEditingItem = null
@@ -900,17 +922,25 @@ fun BatchReviewScreen(
 fun BatchActionButton(
     icon: ImageVector,
     label: String,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
         Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.height(4.dp))
-        Text(label, color = Color.LightGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text(
+            text = label,
+            color = Color.LightGray,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

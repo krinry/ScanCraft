@@ -34,6 +34,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.krinry.scancraft.data.model.Page
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.io.File
 
 @Composable
@@ -56,13 +57,14 @@ fun SignaturePlacementDialog(
         if (signatureBitmap.width > 0) signatureBitmap.height.toFloat() / signatureBitmap.width.toFloat() else 0.5f
     }
 
+    val colors = ScannerTheme.colors
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color(0xFF121212)
+            color = colors.background
         ) {
             Column(
                 modifier = Modifier
@@ -78,11 +80,11 @@ fun SignaturePlacementDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color.White)
+                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = colors.textPrimary)
                     }
                     Text(
                         text = "Position Signature",
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
                     )
@@ -201,7 +203,7 @@ fun SignaturePlacementDialog(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "Drag to position signature • Drag green corner to resize",
-                    color = Color.LightGray,
+                    color = colors.textSecondary,
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))

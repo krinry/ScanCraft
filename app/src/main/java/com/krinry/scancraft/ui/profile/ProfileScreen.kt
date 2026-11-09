@@ -44,6 +44,10 @@ import com.krinry.scancraft.data.repository.SettingsManager
 import com.krinry.scancraft.data.repository.StorageCalculator
 import com.krinry.scancraft.data.repository.StorageStats
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerGreenContainer
+import com.krinry.scancraft.ui.theme.ScannerTheme
+import com.krinry.scancraft.ui.theme.ThemeManager
+import com.krinry.scancraft.ui.theme.AppThemeMode
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,6 +99,9 @@ fun ProfileScreen(
         }
     }
 
+    val colors = ScannerTheme.colors
+    val themeMode by ThemeManager.themeMode.collectAsState()
+
     // Dialog states
     var showAvatarOptionsDialog by remember { mutableStateOf(false) }
     var showEditNameDialog by remember { mutableStateOf(false) }
@@ -103,6 +110,7 @@ fun ProfileScreen(
     var showDocManagementDialog by remember { mutableStateOf(false) }
     var showDocExportDialog by remember { mutableStateOf(false) }
     var showOcrLanguageDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
 
@@ -113,7 +121,7 @@ fun ProfileScreen(
                     Box(modifier = Modifier.fillMaxWidth().padding(end = 48.dp), contentAlignment = Alignment.Center) {
                         Text(
                             text = "Me",
-                            color = Color.White,
+                            color = colors.textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
@@ -124,14 +132,14 @@ fun ProfileScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = colors.textPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface)
             )
         },
-        containerColor = Color.Black
+        containerColor = colors.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -145,7 +153,8 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
-                color = Color(0xFF141414)
+                color = colors.surface,
+                border = BorderStroke(0.5.dp, colors.cardBorder)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -157,7 +166,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .size(60.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF1E2822))
+                                .background(ScannerGreenContainer)
                                 .clickable { showAvatarOptionsDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
@@ -198,7 +207,7 @@ fun ProfileScreen(
                                 Icon(
                                     Icons.Default.CameraAlt,
                                     contentDescription = "Change Avatar",
-                                    tint = Color.Black,
+                                    tint = Color.White,
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
@@ -213,7 +222,7 @@ fun ProfileScreen(
                             ) {
                                 Text(
                                     text = userName,
-                                    color = Color.White,
+                                    color = colors.textPrimary,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 18.sp
                                 )
@@ -221,7 +230,7 @@ fun ProfileScreen(
                                 Icon(
                                     Icons.Default.Edit,
                                     contentDescription = "Edit Name",
-                                    tint = Color.Gray,
+                                    tint = colors.textSecondary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -231,7 +240,7 @@ fun ProfileScreen(
                             // Tier Badge
                             Surface(
                                 shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFF1E2822),
+                                color = colors.surfaceSecondary,
                                 border = BorderStroke(0.5.dp, ScannerGreen.copy(alpha = 0.5f)),
                                 modifier = Modifier
                                     .clickable { showEditNameDialog = true }
@@ -250,7 +259,7 @@ fun ProfileScreen(
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = userTier,
-                                        color = Color.White,
+                                        color = colors.textPrimary,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -273,7 +282,7 @@ fun ProfileScreen(
                     ) {
                         Text(
                             text = "Storage Used",
-                            color = Color(0xFFAAAAAA),
+                            color = colors.textSecondary,
                             fontSize = 13.sp
                         )
                         Text(
@@ -295,7 +304,7 @@ fun ProfileScreen(
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp)),
                         color = ScannerGreen,
-                        trackColor = Color(0xFF262626)
+                        trackColor = colors.cardBorder
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -305,7 +314,7 @@ fun ProfileScreen(
                     val cacheSize = stats?.cacheFormatted ?: "0 B"
                     Text(
                         text = "$filesCount Scan files • Cache: $cacheSize",
-                        color = Color(0xFF777777),
+                        color = colors.textMuted,
                         fontSize = 11.sp
                     )
                 }
@@ -313,12 +322,13 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. Action Section 1 (Sync, Scan Settings, Doc Management, Doc Export, OCR Language)
+            // 2. Action Section 1 (Sync, Scan Settings, Doc Management, Doc Export, OCR Language, Theme)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
-                color = Color(0xFF141414)
+                color = colors.surface,
+                border = BorderStroke(0.5.dp, colors.cardBorder)
             ) {
                 Column {
                     ProfileMenuRow(
@@ -355,6 +365,17 @@ fun ProfileScreen(
                         subtitle = settingsManager.ocrLanguage.collectAsState().value,
                         onClick = { showOcrLanguageDialog = true }
                     )
+                    ProfileDivider()
+                    ProfileMenuRow(
+                        icon = Icons.Outlined.DarkMode,
+                        title = "App Theme",
+                        subtitle = when (themeMode) {
+                            AppThemeMode.LIGHT -> "Light Theme"
+                            AppThemeMode.DARK -> "Dark Theme"
+                            AppThemeMode.SYSTEM -> "System Default"
+                        },
+                        onClick = { showThemeDialog = true }
+                    )
                 }
             }
 
@@ -365,7 +386,8 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
-                color = Color(0xFF141414)
+                color = colors.surface,
+                border = BorderStroke(0.5.dp, colors.cardBorder)
             ) {
                 Column {
                     ProfileMenuRow(
@@ -429,13 +451,13 @@ fun ProfileScreen(
             ) {
                 Text(
                     text = "ScanCraft v1.0.0",
-                    color = Color(0xFF666666),
+                    color = colors.textMuted,
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Open Source Document Vault • Clean-Room Native Vision",
-                    color = Color(0xFF666666),
+                    color = colors.textMuted,
                     fontSize = 11.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
@@ -465,11 +487,11 @@ fun ProfileScreen(
     if (showAvatarOptionsDialog) {
         AlertDialog(
             onDismissRequest = { showAvatarOptionsDialog = false },
-            title = { Text("Profile Photo", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Profile Photo", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     ListItem(
-                        headlineContent = { Text("Choose from Gallery", color = Color.White) },
+                        headlineContent = { Text("Choose from Gallery", color = colors.textPrimary) },
                         leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = ScannerGreen) },
                         modifier = Modifier.clickable {
                             showAvatarOptionsDialog = false
@@ -497,10 +519,10 @@ fun ProfileScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAvatarOptionsDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -511,7 +533,7 @@ fun ProfileScreen(
 
         AlertDialog(
             onDismissRequest = { showEditNameDialog = false },
-            title = { Text("Edit Profile", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Edit Profile", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     OutlinedTextField(
@@ -520,10 +542,10 @@ fun ProfileScreen(
                         label = { Text("Your Name") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
                             focusedBorderColor = ScannerGreen,
-                            unfocusedBorderColor = Color.Gray
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -534,10 +556,10 @@ fun ProfileScreen(
                         label = { Text("Status / Title (e.g. Pro, Offline Vault)") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
                             focusedBorderColor = ScannerGreen,
-                            unfocusedBorderColor = Color.Gray
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -557,10 +579,56 @@ fun ProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showEditNameDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
+        )
+    }
+
+    // App Theme Dialog
+    if (showThemeDialog) {
+        val currentThemeMode = themeMode
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text("App Theme", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    listOf(
+                        AppThemeMode.SYSTEM to "System Default",
+                        AppThemeMode.DARK to "Dark Theme",
+                        AppThemeMode.LIGHT to "Light Theme"
+                    ).forEach { (mode, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    ThemeManager.setThemeMode(context, mode)
+                                    showThemeDialog = false
+                                }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            RadioButton(
+                                selected = currentThemeMode == mode,
+                                onClick = {
+                                    ThemeManager.setThemeMode(context, mode)
+                                    showThemeDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = ScannerGreen)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label, color = colors.textPrimary, fontSize = 14.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Cancel", color = colors.textSecondary)
+                }
+            },
+            containerColor = colors.surface
         )
     }
 
@@ -623,7 +691,7 @@ fun ProfileScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.DocumentScanner, contentDescription = null, tint = ScannerGreen)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("About ScanCraft", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("About ScanCraft", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
@@ -634,23 +702,23 @@ fun ProfileScreen(
                         modifier = Modifier.size(72.dp).clip(CircleShape)
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("ScanCraft v1.0.0", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("ScanCraft v1.0.0", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         "An offline-first, privacy-focused open source document scanner powered by high-performance clean-room native computer vision.",
-                        color = Color.LightGray,
+                        color = colors.textSecondary,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        Text("• 100% Offline & Private (Zero tracking)", color = Color.White, fontSize = 12.sp)
-                        Text("• Native C++ Document Quad Detection & Warp", color = Color.White, fontSize = 12.sp)
-                        Text("• Multi-cloud & SAF local archive synchronization", color = Color.White, fontSize = 12.sp)
-                        Text("• Multi-script ML Kit OCR (Latin, Devanagari, Chinese, Japanese)", color = Color.White, fontSize = 12.sp)
+                        Text("• 100% Offline & Private (Zero tracking)", color = colors.textPrimary, fontSize = 12.sp)
+                        Text("• Native C++ Document Quad Detection & Warp", color = colors.textPrimary, fontSize = 12.sp)
+                        Text("• Multi-cloud & SAF local archive synchronization", color = colors.textPrimary, fontSize = 12.sp)
+                        Text("• Multi-script ML Kit OCR (Latin, Devanagari, Chinese, Japanese)", color = colors.textPrimary, fontSize = 12.sp)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Licensed under the MIT License.", color = Color.Gray, fontSize = 11.sp)
+                    Text("Licensed under the MIT License.", color = colors.textMuted, fontSize = 11.sp)
                 }
             },
             confirmButton = {
@@ -661,7 +729,7 @@ fun ProfileScreen(
                     Text("Close", color = Color.White)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 }
@@ -673,6 +741,7 @@ fun ProfileMenuRow(
     subtitle: String? = null,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -683,14 +752,14 @@ fun ProfileMenuRow(
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = Color.White,
+            tint = colors.textPrimary,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = colors.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -698,7 +767,7 @@ fun ProfileMenuRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
-                    color = Color.Gray,
+                    color = colors.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -706,7 +775,7 @@ fun ProfileMenuRow(
         Icon(
             Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = Color(0xFF555555),
+            tint = colors.textMuted,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -714,10 +783,11 @@ fun ProfileMenuRow(
 
 @Composable
 fun ProfileDivider() {
+    val colors = ScannerTheme.colors
     HorizontalDivider(
         modifier = Modifier.padding(start = 54.dp),
         thickness = 0.5.dp,
-        color = Color(0xFF202020)
+        color = colors.cardBorder
     )
 }
 
@@ -729,6 +799,7 @@ fun RealCloudSyncDialog(
     cloudSyncManager: CloudSyncManager,
     onDismiss: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -859,7 +930,7 @@ fun RealCloudSyncDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Sync, contentDescription = null, tint = ScannerGreen)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Cloud Storage & Multi-Sync", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Cloud Storage & Multi-Sync", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         },
         text = {
@@ -870,7 +941,7 @@ fun RealCloudSyncDialog(
             ) {
                 Text(
                     text = "Connect genuine cloud accounts & local folders to automatically back up scans and databases.",
-                    color = Color.LightGray,
+                    color = colors.textSecondary,
                     fontSize = 12.sp
                 )
 
@@ -986,8 +1057,8 @@ fun RealCloudSyncDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Sync New Scans", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text("Upload automatically after scanning", color = Color.Gray, fontSize = 11.sp)
+                        Text("Auto-Sync New Scans", color = colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Upload automatically after scanning", color = colors.textSecondary, fontSize = 11.sp)
                     }
                     Switch(
                         checked = autoSyncEnabled,
@@ -1006,8 +1077,8 @@ fun RealCloudSyncDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Sync on Wi-Fi Only", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text("Conserve mobile data when uploading HD scans", color = Color.Gray, fontSize = 11.sp)
+                        Text("Sync on Wi-Fi Only", color = colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Conserve mobile data when uploading HD scans", color = colors.textSecondary, fontSize = 11.sp)
                     }
                     Switch(
                         checked = wifiOnly,
@@ -1026,8 +1097,8 @@ fun RealCloudSyncDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Generate & Sync PDFs", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text("Sync multi-page PDF & ZIP backup package", color = Color.Gray, fontSize = 11.sp)
+                        Text("Auto-Generate & Sync PDFs", color = colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Sync multi-page PDF & ZIP backup package", color = colors.textSecondary, fontSize = 11.sp)
                     }
                     Switch(
                         checked = syncPdfCopies,
@@ -1044,7 +1115,8 @@ fun RealCloudSyncDialog(
                 // Live Sync Status
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF141414),
+                    color = colors.surfaceSecondary,
+                    border = BorderStroke(0.5.dp, colors.cardBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -1053,7 +1125,7 @@ fun RealCloudSyncDialog(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text("Sync Status", color = Color.Gray, fontSize = 11.sp)
+                            Text("Sync Status", color = colors.textSecondary, fontSize = 11.sp)
                             val statusText = when (val s = syncState) {
                                 is SyncState.Syncing -> s.progressMessage
                                 is SyncState.Completed -> s.message
@@ -1062,7 +1134,7 @@ fun RealCloudSyncDialog(
                             }
                             Text(
                                 text = statusText,
-                                color = Color.White,
+                                color = colors.textPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 2
@@ -1105,7 +1177,7 @@ fun RealCloudSyncDialog(
                 Text("Done", color = Color.White)
             }
         },
-        containerColor = Color(0xFF1E1E1E)
+        containerColor = colors.surface
     )
 
     // Sub-Dialog 1: Google Drive Connection Method Selector
@@ -1120,14 +1192,14 @@ fun RealCloudSyncDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.CloudQueue, contentDescription = null, tint = ScannerGreen)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Connect Google Drive", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Connect Google Drive", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(
                         text = "Choose your preferred way to sync scans with Google Drive:",
-                        color = Color.LightGray,
+                        color = colors.textSecondary,
                         fontSize = 12.sp
                     )
 
@@ -1136,7 +1208,7 @@ fun RealCloudSyncDialog(
                     // Option A: Android System Drive Picker (Recommended - Zero Setup)
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF142419),
+                        color = ScannerGreenContainer,
                         border = BorderStroke(1.dp, ScannerGreen.copy(alpha = 0.6f)),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1150,13 +1222,13 @@ fun RealCloudSyncDialog(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Select Drive Folder", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("Select Drive Folder", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(shape = RoundedCornerShape(4.dp), color = ScannerGreen) {
-                                        Text("INSTANT", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
+                                        Text("INSTANT", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp))
                                     }
                                 }
-                                Text("No developer account or SHA-1 setup needed. Uses phone's Google Drive app directly.", color = Color.LightGray, fontSize = 11.sp)
+                                Text("No developer account or SHA-1 setup needed. Uses phone's Google Drive app directly.", color = colors.textSecondary, fontSize = 11.sp)
                             }
                         }
                     }
@@ -1166,8 +1238,8 @@ fun RealCloudSyncDialog(
                     // Option B: 1-Tap Google Play Services Sign-In
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF161616),
-                        border = BorderStroke(0.5.dp, Color(0xFF333333)),
+                        color = colors.surfaceSecondary,
+                        border = BorderStroke(0.5.dp, colors.cardBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
@@ -1180,11 +1252,11 @@ fun RealCloudSyncDialog(
                             }
                     ) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(28.dp))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Google Play Sign-In (1-Tap)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text("Requires registered SHA-1 in Google Cloud Console.", color = Color.Gray, fontSize = 11.sp)
+                                Text("Google Play Sign-In (1-Tap)", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("Requires registered SHA-1 in Google Cloud Console.", color = colors.textSecondary, fontSize = 11.sp)
                             }
                         }
                     }
@@ -1206,9 +1278,10 @@ fun RealCloudSyncDialog(
                             label = { Text("Web Client ID (optional)") },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = ScannerGreen
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary,
+                                focusedBorderColor = ScannerGreen,
+                                unfocusedBorderColor = colors.cardBorder
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -1219,9 +1292,10 @@ fun RealCloudSyncDialog(
                             label = { Text("OAuth Bearer Access Token (optional)") },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedBorderColor = ScannerGreen
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary,
+                                focusedBorderColor = ScannerGreen,
+                                unfocusedBorderColor = colors.cardBorder
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -1250,10 +1324,10 @@ fun RealCloudSyncDialog(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showGoogleDriveOptionsDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -1265,7 +1339,7 @@ fun RealCloudSyncDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFFFB300))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Google Sign-In: Error 10", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("Google Sign-In: Error 10", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 }
             },
             text = {
@@ -1279,7 +1353,7 @@ fun RealCloudSyncDialog(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "This occurs because Google Cloud Console requires registering this build's SHA-1 certificate before allowing 1-tap Google Play sign-in.",
-                        color = Color.LightGray,
+                        color = colors.textSecondary,
                         fontSize = 12.sp
                     )
 
@@ -1302,14 +1376,14 @@ fun RealCloudSyncDialog(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Text("DEVELOPER CREDENTIALS FOR GOOGLE CLOUD", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("DEVELOPER CREDENTIALS FOR GOOGLE CLOUD", color = colors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
 
                     // Package Name Card
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFF121212),
-                        border = BorderStroke(0.5.dp, Color(0xFF333333)),
+                        color = colors.surfaceSecondary,
+                        border = BorderStroke(0.5.dp, colors.cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -1318,8 +1392,8 @@ fun RealCloudSyncDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Package Name", color = Color.Gray, fontSize = 10.sp)
-                                Text(GoogleDriveProvider.APP_PACKAGE_NAME, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Text("Package Name", color = colors.textMuted, fontSize = 10.sp)
+                                Text(GoogleDriveProvider.APP_PACKAGE_NAME, color = colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                             }
                             IconButton(onClick = {
                                 clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(GoogleDriveProvider.APP_PACKAGE_NAME))
@@ -1335,8 +1409,8 @@ fun RealCloudSyncDialog(
                     // SHA-1 Card
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFF121212),
-                        border = BorderStroke(0.5.dp, Color(0xFF333333)),
+                        color = colors.surfaceSecondary,
+                        border = BorderStroke(0.5.dp, colors.cardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -1345,8 +1419,8 @@ fun RealCloudSyncDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Debug SHA-1 Fingerprint", color = Color.Gray, fontSize = 10.sp)
-                                Text(GoogleDriveProvider.DEBUG_SHA1, color = Color.White, fontSize = 11.sp, maxLines = 1)
+                                Text("Debug SHA-1 Fingerprint", color = colors.textMuted, fontSize = 10.sp)
+                                Text(GoogleDriveProvider.DEBUG_SHA1, color = colors.textPrimary, fontSize = 11.sp, maxLines = 1)
                             }
                             IconButton(onClick = {
                                 clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(GoogleDriveProvider.DEBUG_SHA1))
@@ -1361,12 +1435,12 @@ fun RealCloudSyncDialog(
             confirmButton = {
                 Button(
                     onClick = { showGoogleDeveloperErrorDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF333333))
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.surfaceSecondary)
                 ) {
-                    Text("Close", color = Color.White)
+                    Text("Close", color = colors.textPrimary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -1377,19 +1451,20 @@ fun RealCloudSyncDialog(
 
         AlertDialog(
             onDismissRequest = { showDropboxDialog = false },
-            title = { Text("Connect Dropbox", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Connect Dropbox", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Enter your Dropbox OAuth Access Token:", color = Color.LightGray, fontSize = 12.sp)
+                    Text("Enter your Dropbox OAuth Access Token:", color = colors.textSecondary, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = tokenInput,
                         onValueChange = { tokenInput = it },
                         label = { Text("Access Token") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ScannerGreen
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = ScannerGreen,
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1399,9 +1474,10 @@ fun RealCloudSyncDialog(
                         onValueChange = { emailInput = it },
                         label = { Text("Account Name / Email (optional)") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ScannerGreen
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = ScannerGreen,
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1428,10 +1504,10 @@ fun RealCloudSyncDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showDropboxDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -1442,19 +1518,20 @@ fun RealCloudSyncDialog(
 
         AlertDialog(
             onDismissRequest = { showOneDriveDialog = false },
-            title = { Text("Connect Microsoft OneDrive", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Connect Microsoft OneDrive", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Enter Microsoft Graph OAuth Token / App Token:", color = Color.LightGray, fontSize = 12.sp)
+                    Text("Enter Microsoft Graph OAuth Token / App Token:", color = colors.textSecondary, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = tokenInput,
                         onValueChange = { tokenInput = it },
                         label = { Text("OAuth Bearer Token") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ScannerGreen
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = ScannerGreen,
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1464,9 +1541,10 @@ fun RealCloudSyncDialog(
                         onValueChange = { accountInput = it },
                         label = { Text("Account Name (optional)") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ScannerGreen
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = ScannerGreen,
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1490,10 +1568,10 @@ fun RealCloudSyncDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showOneDriveDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -1507,19 +1585,20 @@ fun RealCloudSyncDialog(
 
         AlertDialog(
             onDismissRequest = { showWebDavDialog = false },
-            title = { Text("WebDAV / Nextcloud Setup", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("WebDAV / Nextcloud Setup", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Enter your private cloud WebDAV endpoint credentials:", color = Color.LightGray, fontSize = 12.sp)
+                    Text("Enter your private cloud WebDAV endpoint credentials:", color = colors.textSecondary, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = urlInput,
                         onValueChange = { urlInput = it },
                         label = { Text("Server WebDAV URL") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ScannerGreen
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = ScannerGreen,
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1529,9 +1608,10 @@ fun RealCloudSyncDialog(
                         onValueChange = { userInput = it },
                         label = { Text("Username") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ScannerGreen
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = ScannerGreen,
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1541,9 +1621,10 @@ fun RealCloudSyncDialog(
                         onValueChange = { passInput = it },
                         label = { Text("Password or App Token") },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = ScannerGreen
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary,
+                            focusedBorderColor = ScannerGreen,
+                            unfocusedBorderColor = colors.cardBorder
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1599,10 +1680,10 @@ fun RealCloudSyncDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showWebDavDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 }
@@ -1614,10 +1695,11 @@ fun RealCloudProviderItem(
     isConnected: Boolean,
     onConnectClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = Color(0xFF121212),
-        border = BorderStroke(0.5.dp, if (isConnected) ScannerGreen.copy(alpha = 0.5f) else Color(0xFF2C2C2C)),
+        color = colors.surfaceSecondary,
+        border = BorderStroke(0.5.dp, if (isConnected) ScannerGreen.copy(alpha = 0.5f) else colors.cardBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1626,10 +1708,10 @@ fun RealCloudProviderItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(text = name, color = colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Text(
                     text = accountDesc,
-                    color = if (isConnected) ScannerGreen else Color.Gray,
+                    color = if (isConnected) ScannerGreen else colors.textSecondary,
                     fontSize = 11.sp,
                     maxLines = 1
                 )
@@ -1662,13 +1744,14 @@ fun RealScanSettingsDialog(
     settingsManager: SettingsManager,
     onDismiss: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val autoCrop by settingsManager.autoCropEnabled.collectAsState()
     val gridEnabled by settingsManager.gridEnabled.collectAsState()
     val shutterSound by settingsManager.shutterSoundEnabled.collectAsState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Scan Preferences", color = Color.White, fontWeight = FontWeight.Bold) },
+        title = { Text("Scan Preferences", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Row(
@@ -1677,8 +1760,8 @@ fun RealScanSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Crop Bounds by Default", color = Color.White, fontSize = 14.sp)
-                        Text("Detect edges and perspective warp automatically", color = Color.Gray, fontSize = 11.sp)
+                        Text("Auto-Crop Bounds by Default", color = colors.textPrimary, fontSize = 14.sp)
+                        Text("Detect edges and perspective warp automatically", color = colors.textSecondary, fontSize = 11.sp)
                     }
                     Switch(
                         checked = autoCrop,
@@ -1687,7 +1770,7 @@ fun RealScanSettingsDialog(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFF2C2C2C), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider(color = colors.cardBorder, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -1695,8 +1778,8 @@ fun RealScanSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Viewfinder Rule-of-Thirds Grid", color = Color.White, fontSize = 14.sp)
-                        Text("Show 3x3 alignment guidelines in camera", color = Color.Gray, fontSize = 11.sp)
+                        Text("Viewfinder Rule-of-Thirds Grid", color = colors.textPrimary, fontSize = 14.sp)
+                        Text("Show 3x3 alignment guidelines in camera", color = colors.textSecondary, fontSize = 11.sp)
                     }
                     Switch(
                         checked = gridEnabled,
@@ -1705,7 +1788,7 @@ fun RealScanSettingsDialog(
                     )
                 }
 
-                HorizontalDivider(color = Color(0xFF2C2C2C), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider(color = colors.cardBorder, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -1713,8 +1796,8 @@ fun RealScanSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Camera Shutter Sound", color = Color.White, fontSize = 14.sp)
-                        Text("Play physical camera shutter audio click", color = Color.Gray, fontSize = 11.sp)
+                        Text("Camera Shutter Sound", color = colors.textPrimary, fontSize = 14.sp)
+                        Text("Play physical camera shutter audio click", color = colors.textSecondary, fontSize = 11.sp)
                     }
                     Switch(
                         checked = shutterSound,
@@ -1729,7 +1812,7 @@ fun RealScanSettingsDialog(
                 Text("Done", color = Color.White)
             }
         },
-        containerColor = Color(0xFF1E1E1E)
+        containerColor = colors.surface
     )
 }
 
@@ -1741,6 +1824,7 @@ fun RealDocManagementDialog(
     settingsManager: SettingsManager,
     onDismiss: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val namingPattern by settingsManager.namingPattern.collectAsState()
     val autoOcr by settingsManager.autoOcrEnabled.collectAsState()
     var tempPattern by remember { mutableStateOf(namingPattern) }
@@ -1754,10 +1838,10 @@ fun RealDocManagementDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Document Management", color = Color.White, fontWeight = FontWeight.Bold) },
+        title = { Text("Document Management", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text("Default Document Naming Pattern:", color = Color.Gray, fontSize = 12.sp)
+                Text("Default Document Naming Pattern:", color = colors.textSecondary, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 OutlinedTextField(
                     value = tempPattern,
@@ -1767,9 +1851,10 @@ fun RealDocManagementDialog(
                     },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = ScannerGreen
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedBorderColor = ScannerGreen,
+                        unfocusedBorderColor = colors.cardBorder
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1803,7 +1888,7 @@ fun RealDocManagementDialog(
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = Color(0xFF2C2C2C), thickness = 0.5.dp)
+                HorizontalDivider(color = colors.cardBorder, thickness = 0.5.dp)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
@@ -1812,8 +1897,8 @@ fun RealDocManagementDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-Run OCR After Scan", color = Color.White, fontSize = 14.sp)
-                        Text("Extract text automatically in background", color = Color.Gray, fontSize = 11.sp)
+                        Text("Auto-Run OCR After Scan", color = colors.textPrimary, fontSize = 14.sp)
+                        Text("Extract text automatically in background", color = colors.textSecondary, fontSize = 11.sp)
                     }
                     Switch(
                         checked = autoOcr,
@@ -1828,7 +1913,7 @@ fun RealDocManagementDialog(
                 Text("Done", color = Color.White)
             }
         },
-        containerColor = Color(0xFF1E1E1E)
+        containerColor = colors.surface
     )
 }
 
@@ -1840,15 +1925,16 @@ fun RealDocExportDialog(
     settingsManager: SettingsManager,
     onDismiss: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val currentSize by settingsManager.defaultPdfSize.collectAsState()
     val options = listOf("A4", "US Letter", "Fit to Document")
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Export Preferences", color = Color.White, fontWeight = FontWeight.Bold) },
+        title = { Text("Export Preferences", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text("Default PDF Page Format:", color = Color.LightGray, fontSize = 13.sp)
+                Text("Default PDF Page Format:", color = colors.textSecondary, fontSize = 13.sp)
                 Spacer(modifier = Modifier.height(8.dp))
                 options.forEach { opt ->
                     Row(
@@ -1864,7 +1950,7 @@ fun RealDocExportDialog(
                             colors = RadioButtonDefaults.colors(selectedColor = ScannerGreen)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(opt, color = Color.White, fontSize = 14.sp)
+                        Text(opt, color = colors.textPrimary, fontSize = 14.sp)
                     }
                 }
             }
@@ -1874,7 +1960,7 @@ fun RealDocExportDialog(
                 Text("Done", color = Color.White)
             }
         },
-        containerColor = Color(0xFF1E1E1E)
+        containerColor = colors.surface
     )
 }
 
@@ -1886,6 +1972,7 @@ fun RealOcrLanguageDialog(
     settingsManager: SettingsManager,
     onDismiss: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val selectedLang by settingsManager.ocrLanguage.collectAsState()
     val languages = listOf("English", "Hindi", "Spanish", "French", "German", "Japanese", "Chinese")
 
@@ -1893,7 +1980,7 @@ fun RealOcrLanguageDialog(
         onDismissRequest = onDismiss,
         title = {
             Column {
-                Text("OCR Language Selection", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("OCR Language Selection", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                 Text("Powered by Google ML Kit Offline Models", color = ScannerGreen, fontSize = 11.sp)
             }
         },
@@ -1913,7 +2000,7 @@ fun RealOcrLanguageDialog(
                             colors = RadioButtonDefaults.colors(selectedColor = ScannerGreen)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(lang, color = Color.White, fontSize = 14.sp)
+                        Text(lang, color = colors.textPrimary, fontSize = 14.sp)
                     }
                 }
             }
@@ -1923,7 +2010,7 @@ fun RealOcrLanguageDialog(
                 Text("Done", color = Color.White)
             }
         },
-        containerColor = Color(0xFF1E1E1E)
+        containerColor = colors.surface
     )
 }
 
@@ -1935,17 +2022,18 @@ fun RealFeedbackDialog(
     context: Context,
     onDismiss: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     var feedbackText by remember { mutableStateOf("") }
     var issueTitle by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Submit Feedback & Issue", color = Color.White, fontWeight = FontWeight.Bold) },
+        title = { Text("Submit Feedback & Issue", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(
                     "Submit directly to ScanCraft GitHub Issues (krinry/ScanCraft) with auto-attached system details:",
-                    color = Color.LightGray,
+                    color = colors.textSecondary,
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(10.dp))
@@ -1955,10 +2043,10 @@ fun RealFeedbackDialog(
                     label = { Text("Issue Title / Summary") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
                         focusedBorderColor = ScannerGreen,
-                        unfocusedBorderColor = Color.Gray
+                        unfocusedBorderColor = colors.cardBorder
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1969,10 +2057,10 @@ fun RealFeedbackDialog(
                     placeholder = { Text("Describe the bug or feature request in detail...") },
                     modifier = Modifier.fillMaxWidth().height(120.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
                         focusedBorderColor = ScannerGreen,
-                        unfocusedBorderColor = Color.Gray
+                        unfocusedBorderColor = colors.cardBorder
                     )
                 )
             }
@@ -2015,9 +2103,9 @@ fun RealFeedbackDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.Gray)
+                Text("Cancel", color = colors.textSecondary)
             }
         },
-        containerColor = Color(0xFF1E1E1E)
+        containerColor = colors.surface
     )
 }

@@ -1,5 +1,6 @@
 package com.krinry.scancraft.ui.home.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.krinry.scancraft.ui.theme.ScannerTheme
@@ -35,7 +37,8 @@ fun BatchSelectionBottomBar(
     val colors = ScannerTheme.colors
 
     Surface(
-        color = Color(0xFF0E0E0E),
+        color = colors.surface,
+        border = BorderStroke(0.5.dp, colors.cardBorder),
         modifier = Modifier.fillMaxWidth(),
         tonalElevation = 8.dp
     ) {
@@ -52,6 +55,7 @@ fun BatchSelectionBottomBar(
                 icon = Icons.Outlined.Share,
                 label = "Share",
                 enabled = selectedCount > 0,
+                modifier = Modifier.weight(1f),
                 onClick = onShare
             )
 
@@ -60,6 +64,7 @@ fun BatchSelectionBottomBar(
                 icon = Icons.AutoMirrored.Outlined.DriveFileMove,
                 label = "Move/Copy",
                 enabled = selectedCount > 0,
+                modifier = Modifier.weight(1f),
                 onClick = onMoveCopy
             )
 
@@ -69,6 +74,7 @@ fun BatchSelectionBottomBar(
                     icon = Icons.AutoMirrored.Filled.CallMerge,
                     label = "Merge",
                     enabled = true,
+                    modifier = Modifier.weight(1f),
                     onClick = onMerge
                 )
             } else {
@@ -76,6 +82,7 @@ fun BatchSelectionBottomBar(
                     icon = Icons.Outlined.Edit,
                     label = "Rename",
                     enabled = selectedCount == 1,
+                    modifier = Modifier.weight(1f),
                     onClick = onRename
                 )
             }
@@ -86,6 +93,7 @@ fun BatchSelectionBottomBar(
                 label = "Delete",
                 enabled = selectedCount > 0,
                 tint = Color(0xFFEE3F3F),
+                modifier = Modifier.weight(1f),
                 onClick = onDeleteSelected
             )
 
@@ -94,6 +102,7 @@ fun BatchSelectionBottomBar(
                 icon = Icons.Default.MoreVert,
                 label = "More",
                 enabled = selectedCount > 0,
+                modifier = Modifier.weight(1f),
                 onClick = onMore
             )
         }
@@ -105,20 +114,22 @@ private fun BatchActionButton(
     icon: ImageVector,
     label: String,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     tint: Color? = null,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val effectiveTint = when {
-        !enabled -> Color(0xFF555555)
+        !enabled -> colors.textMuted
         tint != null -> tint
-        else -> Color.White
+        else -> colors.textPrimary
     }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
         Icon(icon, contentDescription = label, tint = effectiveTint, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.height(4.dp))
@@ -126,7 +137,9 @@ private fun BatchActionButton(
             text = label,
             color = effectiveTint,
             fontSize = 11.sp,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

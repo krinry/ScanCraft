@@ -1494,11 +1494,42 @@ fun CameraScreen(
             )
         }
 
-        // Single-page Crop Screen when "Crop images after each scan" is enabled
+        // Crop Screen when "Crop images after each scan" is enabled or image captured
         if (pendingCropImagePath != null) {
+            val cropItems = remember(batchQueue, pendingCropImagePath) {
+                val list = batchQueue.map {
+                    com.krinry.scancraft.ui.crop.CropItem(
+                        id = it.id,
+                        imagePath = it.rawFilePath,
+                        initialQuad = it.cropQuad,
+                        rotationDegrees = it.rotationDegrees
+                    )
+                }.toMutableList()
+                val path = pendingCropImagePath!!
+                if (list.none { it.imagePath == path }) {
+                    list.add(com.krinry.scancraft.ui.crop.CropItem(id = 0L, imagePath = path))
+                }
+                list
+            }
+            val initialIdx = (cropItems.size - 1).coerceAtLeast(0)
             CropScreen(
+                items = cropItems,
+                initialIndex = initialIdx,
                 imagePath = pendingCropImagePath!!,
                 docId = docId,
+                onBatchCropConfirmed = { quadsMap ->
+                    val path = pendingCropImagePath
+                    quadsMap.forEach { (id, quad) ->
+                        if (id == 0L && path != null) {
+                            viewModel.addDocumentItemFromFile(path) { newItem ->
+                                viewModel.updateBatchItemCrop(newItem.id, quad)
+                            }
+                        } else {
+                            viewModel.updateBatchItemCrop(id, quad)
+                        }
+                    }
+                    pendingCropImagePath = null
+                },
                 onCropConfirmed = { quad ->
                     viewModel.addDocumentItemFromFile(pendingCropImagePath!!) { newItem ->
                         viewModel.updateBatchItemCrop(newItem.id, quad)

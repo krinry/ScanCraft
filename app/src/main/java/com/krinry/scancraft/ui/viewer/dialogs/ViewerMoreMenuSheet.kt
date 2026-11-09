@@ -34,6 +34,7 @@ import com.krinry.scancraft.ScanCraftApp
 import com.krinry.scancraft.data.model.Page
 import com.krinry.scancraft.data.repository.ScannerRepository
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.io.File
 import java.io.FileOutputStream
 
@@ -118,16 +119,18 @@ fun ViewerMoreMenuSheet(
         }
     )
 
+    val colors = ScannerTheme.colors
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E1E1E),
+        containerColor = colors.surface,
         dragHandle = {
             Surface(
                 modifier = Modifier
                     .padding(vertical = 10.dp)
                     .size(width = 38.dp, height = 4.dp),
                 shape = CircleShape,
-                color = Color(0xFF555555)
+                color = colors.textMuted
             ) {}
         }
     ) {
@@ -139,13 +142,13 @@ fun ViewerMoreMenuSheet(
         ) {
             Text(
                 text = "Page Options",
-                color = Color.White,
+                color = colors.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = "Manage Page ${page.pageIndex + 1} of '$docTitle'",
-                color = Color(0xFFAAAAAA),
+                color = colors.textSecondary,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 2.dp, bottom = 16.dp)
             )
@@ -353,12 +356,16 @@ private fun MoreMenuRow(
     title: String,
     subtitle: String,
     iconTint: Color,
-    textColor: Color = Color.White,
+    textColor: Color? = null,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
+    val effectiveTextColor = textColor ?: colors.textPrimary
+
     Surface(
-        color = Color(0xFF282828),
+        color = colors.surfaceSecondary,
         shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.cardBorder),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
@@ -386,13 +393,13 @@ private fun MoreMenuRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    color = textColor,
+                    color = effectiveTextColor,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = subtitle,
-                    color = Color(0xFFAAAAAA),
+                    color = colors.textSecondary,
                     fontSize = 11.sp
                 )
             }

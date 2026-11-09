@@ -497,7 +497,23 @@ fun PageViewerScreen(
             onDismissRequest = { showCropScreen = false },
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
         ) {
+            val cropItems = remember(pages) {
+                pages.map {
+                    val origFile = java.io.File(it.originalImagePath)
+                    val path = if (origFile.exists() && origFile.length() > 0) origFile.absolutePath else it.processedImagePath
+                    com.krinry.scancraft.ui.crop.CropItem(
+                        id = it.id,
+                        imagePath = path,
+                        initialQuad = null,
+                        rotationDegrees = it.rotationDegrees,
+                        page = it
+                    )
+                }
+            }
+            val initialIdx = pagerState.currentPage.coerceIn(0, (cropItems.size - 1).coerceAtLeast(0))
             CropScreen(
+                items = cropItems,
+                initialIndex = initialIdx,
                 page = activePage,
                 onClose = { showCropScreen = false },
                 onPageUpdated = {

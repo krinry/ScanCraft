@@ -31,6 +31,7 @@ import com.krinry.scancraft.data.repository.ScannerRepository
 import com.krinry.scancraft.ui.signature.SignatureDialog
 import com.krinry.scancraft.ui.signature.SignaturePlacementDialog
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,16 +54,18 @@ fun SignatureWatermarkSheet(
     var watermarkOpacity by remember { mutableFloatStateOf(0.35f) }
     var watermarkColor by remember { mutableStateOf(Color(0xFF888888)) }
 
+    val colors = ScannerTheme.colors
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E1E1E),
+        containerColor = colors.surface,
         dragHandle = {
             Surface(
                 modifier = Modifier
                     .padding(vertical = 10.dp)
                     .size(width = 38.dp, height = 4.dp),
                 shape = CircleShape,
-                color = Color(0xFF555555)
+                color = colors.textMuted
             ) {}
         }
     ) {
@@ -74,13 +77,13 @@ fun SignatureWatermarkSheet(
         ) {
             Text(
                 text = "Sign & Watermark",
-                color = Color.White,
+                color = colors.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = "Add authentic signature or anti-theft security watermark",
-                color = Color(0xFFAAAAAA),
+                color = colors.textSecondary,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 2.dp, bottom = 16.dp)
             )
@@ -271,9 +274,12 @@ private fun ActionTile(
     description: String,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
+
     Surface(
-        color = Color(0xFF282828),
+        color = colors.surfaceSecondary,
         shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.cardBorder),
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
@@ -301,13 +307,13 @@ private fun ActionTile(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = colors.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = description,
-                    color = Color(0xFFAAAAAA),
+                    color = colors.textSecondary,
                     fontSize = 11.sp
                 )
             }
