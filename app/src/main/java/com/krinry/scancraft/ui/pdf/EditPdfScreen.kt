@@ -399,7 +399,7 @@ fun EditPdfScreen(
                                             ) {
                                                 Text(
                                                     lbl,
-                                                    color = if (isSel) ScannerGreen else colors.textMuted,
+                                                    color = if (isSel) ScannerGreen else colors.textSecondary,
                                                     fontSize = 10.sp,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                                 )
@@ -423,7 +423,7 @@ fun EditPdfScreen(
                                             ) {
                                                 Text(
                                                     lbl,
-                                                    color = if (isSel) ScannerGreen else colors.textMuted,
+                                                    color = if (isSel) ScannerGreen else colors.textSecondary,
                                                     fontSize = 10.sp,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                                 )

@@ -83,6 +83,7 @@ import com.krinry.scancraft.data.model.Page
 import com.krinry.scancraft.data.repository.CollagePageSpec
 import com.krinry.scancraft.ui.crop.CropScreen
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.cos
@@ -368,6 +369,7 @@ fun CollageStudioDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val colors = ScannerTheme.colors
     val listState = rememberLazyListState()
 
     var selectedTemplate by remember { mutableStateOf(COLLAGE_TEMPLATES[0]) } // 4-grid default
@@ -452,7 +454,7 @@ fun CollageStudioDialog(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
-                containerColor = Color(0xFF0D0D0D),
+                containerColor = colors.background,
                 topBar = {
                     Row(
                         modifier = Modifier
@@ -467,21 +469,21 @@ fun CollageStudioDialog(
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Back",
-                                    tint = Color.White
+                                    tint = colors.textPrimary
                                 )
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             Column {
                                 Text(
                                     text = "Collage",
-                                    color = Color.White,
+                                    color = colors.textPrimary,
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 if (documentTitle.isNotBlank()) {
                                     Text(
                                         text = documentTitle,
-                                        color = Color.Gray,
+                                        color = colors.textSecondary,
                                         fontSize = 11.sp,
                                         maxLines = 1
                                     )
@@ -535,7 +537,7 @@ fun CollageStudioDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFF141414))
+                            .background(colors.surface)
                             .navigationBarsPadding()
                     ) {
                         // Tab Drawer Content
@@ -551,10 +553,10 @@ fun CollageStudioDialog(
                                     val isSelected = template.id == selectedTemplate.id
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = if (isSelected) Color(0xFF1E2822) else Color(0xFF222222),
+                                        color = if (isSelected) colors.primaryContainer else colors.surfaceSecondary,
                                         border = BorderStroke(
                                             1.5.dp,
-                                            if (isSelected) ScannerGreen else Color(0xFF333333)
+                                            if (isSelected) ScannerGreen else colors.cardBorder
                                         ),
                                         modifier = Modifier
                                             .width(84.dp)
@@ -574,7 +576,7 @@ fun CollageStudioDialog(
                                             TemplateVisualPreview(template.id, isSelected)
                                             Text(
                                                 text = template.title,
-                                                color = if (isSelected) ScannerGreen else Color(0xFFBBBBBB),
+                                                color = if (isSelected) ScannerGreen else colors.textSecondary,
                                                 fontSize = 9.5.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                                 maxLines = 1
@@ -610,10 +612,10 @@ fun CollageStudioDialog(
 
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = Color(0xFF222222),
+                                            color = colors.surfaceSecondary,
                                             border = BorderStroke(
                                                 2.dp,
-                                                if (isAssigned) ScannerGreen else Color(0xFF383838)
+                                                if (isAssigned) ScannerGreen else colors.cardBorder
                                             ),
                                             modifier = Modifier
                                                 .size(54.dp, 72.dp)
@@ -674,7 +676,7 @@ fun CollageStudioDialog(
                             }
                         }
 
-                        HorizontalDivider(color = Color(0xFF242424), thickness = 0.5.dp)
+                        HorizontalDivider(color = colors.cardBorder, thickness = 0.5.dp)
 
                         // Bottom Navigation Bar with [+ Page], [Add Watermark], [Template], [Size]
                         Row(
@@ -766,7 +768,7 @@ fun CollageStudioDialog(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
-                        .background(Color(0xFF0D0D0D))
+                        .background(colors.background)
                         .onSizeChanged { canvasBoxSize = it }
                 ) {
                     LazyColumn(
@@ -2500,6 +2502,7 @@ private fun CollageBottomActionItem(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -2509,13 +2512,13 @@ private fun CollageBottomActionItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isActive) ScannerGreen else Color(0xFFAAAAAA),
+            tint = if (isActive) ScannerGreen else colors.textSecondary,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
-            color = if (isActive) ScannerGreen else Color(0xFFAAAAAA),
+            color = if (isActive) ScannerGreen else colors.textSecondary,
             fontSize = 11.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )

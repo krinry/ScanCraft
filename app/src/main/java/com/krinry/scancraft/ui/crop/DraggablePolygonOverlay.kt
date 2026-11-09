@@ -42,7 +42,7 @@ fun DraggablePolygonOverlay(
     onHandleActive: (handlePoint: Offset?, touchPoint: Offset?) -> Unit = { _, _ -> },
     zoomScale: Float = 1f,
     onTransform: (zoomChange: Float, panChange: Offset) -> Unit = { _, _ -> },
-    onSwipe: ((isNext: Boolean) -> Unit)? = null,
+    onSwipe: ((isNext: Boolean) -> Boolean)? = null,
     modifier: Modifier = Modifier
 ) {
     val currentQuad by rememberUpdatedState(quad)
@@ -170,8 +170,12 @@ fun DraggablePolygonOverlay(
                                 if (!swipeTriggered && !bodyDragStarted) {
                                     if (kotlin.math.abs(totalSwipeDx) > threshold &&
                                         kotlin.math.abs(totalSwipeDx) > kotlin.math.abs(totalSwipeDy) * 1.2f) {
-                                        swipeTriggered = true
-                                        currentOnSwipe?.invoke(totalSwipeDx < 0f)
+                                        val handled = currentOnSwipe?.invoke(totalSwipeDx < 0f) ?: false
+                                        if (handled) {
+                                            swipeTriggered = true
+                                        } else {
+                                            bodyDragStarted = true
+                                        }
                                     } else if (kotlin.math.abs(totalSwipeDy) > dragSlop ||
                                         (kotlin.math.abs(totalSwipeDx) > dragSlop && kotlin.math.abs(totalSwipeDy) > kotlin.math.abs(totalSwipeDx))) {
                                         // Predominantly vertical or diagonal movement beyond slop -> classify as body drag

@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.RectF
+import android.media.ExifInterface
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -71,6 +72,36 @@ data class CropItem(
 )
 
 /**
+ * Result data holder for batch cropping: quad and effective rotation degrees.
+ */
+data class BatchCropResult(
+    val quad: DocumentQuadrilateral,
+    val rotationDegrees: Int
+)
+
+/**
+ * Maps a [Page] entity into a unified [CropItem].
+ */
+fun Page.toCropItem(explicitRotation: Int? = null): CropItem {
+    val origFile = File(originalImagePath)
+    val path = if (origFile.exists() && origFile.length() > 0) origFile.absolutePath else processedImagePath
+    val rot = (rotationDegrees + (explicitRotation ?: 0)) % 360
+    val pQuad = cropBorderJson
+        .takeIf { it.isNotBlank() }
+        ?.split(",")
+        ?.mapNotNull { it.toFloatOrNull() }
+        ?.takeIf { it.size >= 8 }
+        ?.let { DocumentQuadrilateral.fromFloatArray(it.toFloatArray()) }
+    return CropItem(
+        id = id,
+        imagePath = path,
+        initialQuad = pQuad,
+        rotationDegrees = rot,
+        page = this
+    )
+}
+
+/**
  * Universal Production-grade Document Crop Screen adhering strictly to AGENTS.md clean-room standards.
  *
  * Single Source of Truth for cropping across the entire application:
@@ -97,7 +128,7 @@ fun CropScreen(
     rotationDegrees: Int? = null,
     items: List<CropItem> = emptyList(),
     initialIndex: Int = 0,
-    onBatchCropConfirmed: ((Map<Long, DocumentQuadrilateral>) -> Unit)? = null,
+    onBatchCropConfirmed: ((Map<Long, BatchCropResult>) -> Unit)? = null,
     onCropConfirmed: ((DocumentQuadrilateral) -> Unit)? = null,
     onNavigateToFilter: ((imagePath: String, docId: Long, borderJson: String) -> Unit)? = null,
     onPageUpdated: (() -> Unit)? = null,
@@ -112,16 +143,21 @@ fun CropScreen(
         if (items.isNotEmpty()) {
             items
         } else if (page != null) {
-            val origFile = File(page.originalImagePath)
-            val path = if (origFile.exists() && origFile.length() > 0) origFile.absolutePath else page.processedImagePath
-            val explicitRot = (page.rotationDegrees + (rotationDegrees ?: 0)) % 360
-            val pQuad = if (initialQuad != null) initialQuad else if (page.cropBorderJson.isNotBlank()) {
-                val parts = page.cropBorderJson.split(",").mapNotNull { it.toFloatOrNull() }
-                if (parts.size >= 8) DocumentQuadrilateral.fromFloatArray(parts.toFloatArray()) else null
-            } else null
-            listOf(CropItem(id = page.id, imagePath = path, initialQuad = pQuad, rotationDegrees = explicitRot, page = page))
+            val baseItem = page.toCropItem(rotationDegrees)
+            listOf(if (initialQuad != null) baseItem.copy(initialQuad = initialQuad) else baseItem)
         } else if (imagePath.isNotBlank()) {
-            listOf(CropItem(id = 0L, imagePath = imagePath, initialQuad = initialQuad, rotationDegrees = rotationDegrees ?: 0))
+            val initialRot = rotationDegrees ?: run {
+                try {
+                    val exif = ExifInterface(imagePath)
+                    when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                        ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                        ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                        ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                        else -> 0
+                    }
+                } catch (_: Exception) { 0 }
+            }
+            listOf(CropItem(id = 0L, imagePath = imagePath, initialQuad = initialQuad, rotationDegrees = initialRot))
         } else {
             emptyList()
         }
@@ -218,11 +254,14 @@ fun CropScreen(
     }
 
     fun autoDetectCorners(bmp: Bitmap, fitRect: RectF) {
+        val startIndex = currentIndex
         coroutineScope.launch(Dispatchers.Default) {
             val detected = EdgeDetector.detectInBitmap(bmp)
             val screenQuad = mapDetectedQuadToScreen(detected, fitRect, bmp.width, bmp.height)
             withContext(Dispatchers.Main) {
-                quad = screenQuad
+                if (currentIndex == startIndex && bitmap === bmp) {
+                    quad = screenQuad
+                }
             }
         }
     }
@@ -296,19 +335,7 @@ fun CropScreen(
         withContext(Dispatchers.IO) {
             val file = File(filePath)
             if (file.exists()) {
-                var exifDegrees = 0
-                try {
-                    val exif = android.media.ExifInterface(file.absolutePath)
-                    val orientation = exif.getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL)
-                    exifDegrees = when (orientation) {
-                        android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
-                        android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
-                        android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
-                        else -> 0
-                    }
-                } catch (_: Exception) { }
-
-                val totalRotation = (explicitRot + exifDegrees) % 360
+                val totalRotation = explicitRot
 
                 val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(file.absolutePath, opts)
@@ -339,9 +366,10 @@ fun CropScreen(
                     finalBmp?.let { bmp ->
                         val r = calculateImageFit(viewWidth, viewHeight, bmp.width, bmp.height)
                         val prevSaved = savedQuads[currentIndex]
+                        val isRotatedByUser = itemRotations[currentIndex] != null && itemRotations[currentIndex] != itm.rotationDegrees
                         if (prevSaved != null) {
                             quad = mapInitialQuadToScreen(prevSaved, r, fullImageWidth, fullImageHeight)
-                        } else if (itm.initialQuad != null) {
+                        } else if (itm.initialQuad != null && !isRotatedByUser) {
                             quad = mapInitialQuadToScreen(itm.initialQuad, r, fullImageWidth, fullImageHeight)
                         } else {
                             autoDetectCorners(bmp, r)
@@ -368,21 +396,33 @@ fun CropScreen(
                 "${realQuad.bottomLeft.x},${realQuad.bottomLeft.y}"
 
         if (onBatchCropConfirmed != null) {
-            // Batch workflow: confirm all quads mapped to their item ID
-            val resultMap = mutableMapOf<Long, DocumentQuadrilateral>()
+            // Batch workflow: confirm all quads mapped to their item ID with their effective rotation
+            val resultMap = mutableMapOf<Long, BatchCropResult>()
             resolvedItems.forEachIndexed { idx, itm ->
-                savedQuads[idx]?.let { resultMap[itm.id] = it }
+                val itemQuad = if (idx == currentIndex) realQuad else (savedQuads[idx] ?: itm.initialQuad)
+                if (itemQuad != null) {
+                    val rot = itemRotations[idx] ?: itm.rotationDegrees
+                    resultMap[itm.id] = BatchCropResult(itemQuad, rot)
+                }
             }
             onBatchCropConfirmed(resultMap)
-            onClose()
         } else if (currentItem?.page != null) {
             // Existing single/multi page workflow: warp, apply existing enhancements, update Room DB & file
             val targetPage = currentItem.page
+            val effRot = itemRotations[currentIndex] ?: targetPage.rotationDegrees
             isSaving = true
             coroutineScope.launch(Dispatchers.IO) {
                 try {
                     val rawFile = File(currentItem.imagePath)
-                    val origBmp = BitmapFactory.decodeFile(rawFile.absolutePath) ?: bmp
+                    var origBmp = BitmapFactory.decodeFile(rawFile.absolutePath) ?: bmp
+                    if (effRot != 0) {
+                        val matrix = Matrix().apply { postRotate(effRot.toFloat()) }
+                        val rotated = Bitmap.createBitmap(origBmp, 0, 0, origBmp.width, origBmp.height, matrix, true)
+                        if (rotated != origBmp) {
+                            origBmp.recycle()
+                            origBmp = rotated
+                        }
+                    }
                     val topW = realQuad.topLeft.distanceTo(realQuad.topRight)
                     val botW = realQuad.bottomLeft.distanceTo(realQuad.bottomRight)
                     val leftH = realQuad.topLeft.distanceTo(realQuad.bottomLeft)
@@ -409,7 +449,8 @@ fun CropScreen(
                     repo.updatePageBitmap(
                         pageId = targetPage.id,
                         newBitmap = warped,
-                        cropBorderJson = borderStr
+                        cropBorderJson = borderStr,
+                        rotationDegrees = effRot
                     )
 
                     withContext(Dispatchers.Main) {
@@ -541,17 +582,10 @@ fun CropScreen(
                         icon = Icons.AutoMirrored.Filled.RotateLeft,
                         label = "Left",
                         onClick = {
-                            bitmap?.let { b ->
-                                val matrix = Matrix().apply { postRotate(-90f) }
-                                val rotated = Bitmap.createBitmap(b, 0, 0, b.width, b.height, matrix, true)
-                                bitmap = rotated
-                                val temp = fullImageWidth
-                                fullImageWidth = fullImageHeight
-                                fullImageHeight = temp
-                                itemRotations[currentIndex] = ((itemRotations[currentIndex] ?: 0) - 90 + 360) % 360
-                                val r = calculateImageFit(viewWidth, viewHeight, rotated.width, rotated.height)
-                                autoDetectCorners(rotated, r)
-                            }
+                            val baseRot = itemRotations[currentIndex] ?: currentItem?.rotationDegrees ?: 0
+                            savedQuads.remove(currentIndex)
+                            quad = null
+                            itemRotations[currentIndex] = (baseRot - 90 + 360) % 360
                         }
                     )
 
@@ -560,17 +594,10 @@ fun CropScreen(
                         icon = Icons.AutoMirrored.Filled.RotateRight,
                         label = "Right",
                         onClick = {
-                            bitmap?.let { b ->
-                                val matrix = Matrix().apply { postRotate(90f) }
-                                val rotated = Bitmap.createBitmap(b, 0, 0, b.width, b.height, matrix, true)
-                                bitmap = rotated
-                                val temp = fullImageWidth
-                                fullImageWidth = fullImageHeight
-                                fullImageHeight = temp
-                                itemRotations[currentIndex] = ((itemRotations[currentIndex] ?: 0) + 90) % 360
-                                val r = calculateImageFit(viewWidth, viewHeight, rotated.width, rotated.height)
-                                autoDetectCorners(rotated, r)
-                            }
+                            val baseRot = itemRotations[currentIndex] ?: currentItem?.rotationDegrees ?: 0
+                            savedQuads.remove(currentIndex)
+                            quad = null
+                            itemRotations[currentIndex] = (baseRot + 90) % 360
                         }
                     )
 
@@ -628,7 +655,7 @@ fun CropScreen(
             }
         }
     ) { padding ->
-        val workspaceBg = if (colors.isDark) Color.Black else Color(0xFF14191C)
+        val workspaceBg = colors.background
         var dragAccumulator by remember { mutableFloatStateOf(0f) }
 
         Box(
@@ -639,6 +666,8 @@ fun CropScreen(
                 .pointerInput(currentIndex, resolvedItems.size, zoomScale) {
                     if (resolvedItems.size > 1 && zoomScale <= 1.05f) {
                         detectHorizontalDragGestures(
+                            onDragStart = { dragAccumulator = 0f },
+                            onDragCancel = { dragAccumulator = 0f },
                             onDragEnd = {
                                 val threshold = 40.dp.toPx()
                                 if (dragAccumulator < -threshold && currentIndex < resolvedItems.size - 1) {
@@ -669,9 +698,10 @@ fun CropScreen(
                                 val r = calculateImageFit(viewWidth, viewHeight, bmp.width, bmp.height)
                                 val itm = currentItem
                                 val prevSaved = savedQuads[currentIndex]
+                                val isRotatedByUser = itemRotations[currentIndex] != null && itemRotations[currentIndex] != itm?.rotationDegrees
                                 if (prevSaved != null) {
                                     quad = mapInitialQuadToScreen(prevSaved, r, fullImageWidth, fullImageHeight)
-                                } else if (itm?.initialQuad != null) {
+                                } else if (itm?.initialQuad != null && !isRotatedByUser) {
                                     quad = mapInitialQuadToScreen(itm.initialQuad, r, fullImageWidth, fullImageHeight)
                                 } else {
                                     autoDetectCorners(bmp, r)
@@ -713,12 +743,19 @@ fun CropScreen(
                                 onTransform = { zRatio, pDelta ->
                                     updateTransform(zRatio, pDelta)
                                 },
-                                onSwipe = { isNext ->
-                                    if (resolvedItems.size > 1) {
-                                        if (isNext) switchToPage(currentIndex + 1)
-                                        else switchToPage(currentIndex - 1)
+                                onSwipe = if (resolvedItems.size > 1) {
+                                    { isNext ->
+                                        if (isNext && currentIndex < resolvedItems.size - 1) {
+                                            switchToPage(currentIndex + 1)
+                                            true
+                                        } else if (!isNext && currentIndex > 0) {
+                                            switchToPage(currentIndex - 1)
+                                            true
+                                        } else {
+                                            false
+                                        }
                                     }
-                                }
+                                } else null
                             )
                         }
                     }

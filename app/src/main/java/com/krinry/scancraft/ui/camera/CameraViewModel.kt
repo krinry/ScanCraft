@@ -376,13 +376,29 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun updateBatchItemCrop(id: Long, quad: DocumentQuadrilateral) {
+    fun updateBatchItemCrop(id: Long, quad: DocumentQuadrilateral, rotationDegrees: Int? = null) {
         _batchQueue.value = _batchQueue.value.map { item ->
-            if (item.id == id) {
-                item.copy(cropQuad = quad)
+            if (item.id != id) return@map item
+            val newRot = rotationDegrees ?: item.rotationDegrees
+            val delta = ((newRot - item.rotationDegrees) % 360 + 360) % 360
+            val thumb = if (delta != 0) {
+                val m = Matrix().apply { postRotate(delta.toFloat()) }
+                Bitmap.createBitmap(
+                    item.thumbnailBitmap,
+                    0, 0,
+                    item.thumbnailBitmap.width,
+                    item.thumbnailBitmap.height,
+                    m,
+                    true
+                )
             } else {
-                item
+                item.thumbnailBitmap
             }
+            item.copy(
+                cropQuad = quad,
+                rotationDegrees = newRot,
+                thumbnailBitmap = thumb
+            )
         }
     }
 

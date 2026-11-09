@@ -52,7 +52,7 @@ fun ScannerDocumentListItem(
     val colors = ScannerTheme.colors
     val dateFormat = remember { SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault()) }
 
-    val rowBg = if (isSelected) Color(0xFF0D251C) else Color.Transparent
+    val rowBg = if (isSelected) colors.primaryContainer.copy(alpha = 0.5f) else Color.Transparent
 
     Row(
         modifier = Modifier

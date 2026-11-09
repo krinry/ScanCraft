@@ -166,7 +166,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .size(60.dp)
                                 .clip(CircleShape)
-                                .background(ScannerGreenContainer)
+                                .background(colors.primaryContainer)
                                 .clickable { showAvatarOptionsDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
@@ -1208,7 +1208,7 @@ fun RealCloudSyncDialog(
                     // Option A: Android System Drive Picker (Recommended - Zero Setup)
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = ScannerGreenContainer,
+                        color = colors.primaryContainer,
                         border = BorderStroke(1.dp, ScannerGreen.copy(alpha = 0.6f)),
                         modifier = Modifier
                             .fillMaxWidth()

@@ -115,7 +115,7 @@ fun FilterScreen(
                                 Surface(
                                     modifier = Modifier.size(52.dp),
                                     shape = CircleShape,
-                                    color = if (isSelected) ScannerGreenContainer else colors.surfaceSecondary,
+                                    color = if (isSelected) colors.primaryContainer else colors.surfaceSecondary,
                                     border = if (isSelected) BorderStroke(2.5.dp, ScannerGreen) else BorderStroke(1.dp, colors.cardBorder)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {

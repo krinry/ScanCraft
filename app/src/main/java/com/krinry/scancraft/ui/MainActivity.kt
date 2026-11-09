@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
             val isDark = when (themeMode) {
                 com.krinry.scancraft.ui.theme.AppThemeMode.LIGHT -> false
                 com.krinry.scancraft.ui.theme.AppThemeMode.DARK -> true
-                com.krinry.scancraft.ui.theme.AppThemeMode.SYSTEM -> ThemeManager.isDark(context)
+                com.krinry.scancraft.ui.theme.AppThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
             }
 
             ScanCraftTheme(darkTheme = isDark) {
