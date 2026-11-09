@@ -1,6 +1,7 @@
 package com.krinry.scancraft.data.repository
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.krinry.scancraft.data.local.AppDatabase
 import com.krinry.scancraft.data.local.DocumentDao
 import com.krinry.scancraft.data.local.FolderDao
@@ -13,8 +14,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.*
 import org.json.JSONObject
 import org.junit.Before
@@ -36,6 +40,12 @@ class StorageVaultRecoveryTest {
 
     @Before
     fun setUp() {
+        mockkStatic("androidx.room.RoomDatabaseKt")
+        val transactionSlot = slot<suspend () -> Any?>()
+        coEvery { any<AppDatabase>().withTransaction(capture(transactionSlot)) } coAnswers {
+            transactionSlot.captured.invoke()
+        }
+
         context = mockk(relaxed = true)
         every { context.filesDir } returns tempFolder.root
         every { context.getExternalFilesDir(null) } returns tempFolder.root
@@ -50,6 +60,11 @@ class StorageVaultRecoveryTest {
         every { database.folderDao() } returns folderDao
 
         DocumentThumbnailLoader.invalidateCache()
+    }
+
+    @After
+    fun tearDown() {
+        unmockkStatic("androidx.room.RoomDatabaseKt")
     }
 
     @Test
@@ -215,7 +230,7 @@ class StorageVaultRecoveryTest {
         coVerify(exactly = 0) { folderDao.insertFolder(any()) }
         coVerify(exactly = 1) {
             documentDao.insertDocument(match {
-                it.id == 0L && it.title == doc.title && it.createdTime == 123L &&
+                it.id == doc.id && it.title == doc.title && it.createdTime == 123L &&
                     it.modifiedTime == 456L && it.tags == "tax,work" && it.folderId == 7L && it.pageCount == 1
             })
         }

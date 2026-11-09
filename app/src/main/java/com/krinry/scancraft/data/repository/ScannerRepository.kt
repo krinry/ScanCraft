@@ -138,6 +138,8 @@ class ScannerRepository(
     suspend fun renameFolder(folderId: Long, newName: String) = withContext(Dispatchers.IO) {
         val folder = folderDao.getFolderById(folderId) ?: return@withContext
         folderDao.updateFolder(folder.copy(name = newName.trim()))
+        val docs = documentDao.getDocumentsListInFolder(folderId)
+        docs.forEach { syncDocumentMetadata(it.id) }
     }
 
     suspend fun deleteFolder(folder: Folder) = withContext(Dispatchers.IO) {
@@ -235,6 +237,7 @@ class ScannerRepository(
 
     suspend fun batchMoveToFolder(docIds: List<Long>, folderId: Long) = withContext(Dispatchers.IO) {
         documentDao.batchUpdateFolder(docIds, folderId)
+        docIds.forEach { syncDocumentMetadata(it) }
     }
 
     suspend fun batchCopyDocumentsToFolder(docIds: List<Long>, targetFolderId: Long): List<Long> = withContext(Dispatchers.IO) {
@@ -352,7 +355,9 @@ class ScannerRepository(
             }
             ?: ("New Doc " + SimpleDateFormat("MM-dd-yyyy HH.mm", Locale.getDefault()).format(Date()))
         val doc = Document(title = defaultTitle, folderId = folderId)
-        documentDao.insertDocument(doc)
+        val docId = documentDao.insertDocument(doc)
+        syncDocumentMetadata(docId)
+        docId
     }
 
     suspend fun renameDocument(docId: Long, title: String) = withContext(Dispatchers.IO) {
@@ -471,6 +476,10 @@ class ScannerRepository(
 
     suspend fun updatePageAnnotations(pageId: Long, annotationsJson: String) = withContext(Dispatchers.IO) {
         pageDao.updatePageAnnotations(pageId, annotationsJson)
+        val p = pageDao.getPageById(pageId)
+        if (p != null) {
+            syncDocumentMetadata(p.documentId)
+        }
     }
 
     suspend fun updateDocument(document: Document) = withContext(Dispatchers.IO) {
@@ -530,6 +539,7 @@ class ScannerRepository(
         val doc = documentDao.getDocumentById(page.documentId)
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
+            syncDocumentMetadata(page.documentId)
         }
     }
 
@@ -570,6 +580,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(page.documentId)
         updatedPage
     }
 
@@ -618,6 +629,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(page.documentId)
         updatedPage
     }
 
@@ -657,6 +669,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(page.documentId)
         updatedPage
     }
 
@@ -828,6 +841,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(documentId)
     }
 
     suspend fun stitchIdCardPages(
@@ -1056,6 +1070,8 @@ class ScannerRepository(
         if (targetDoc != null) {
             documentDao.updateDocument(targetDoc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(sourceDocId)
+        syncDocumentMetadata(targetDocId)
     }
 
     suspend fun copyPagesToDocument(pages: List<Page>, targetDocId: Long): List<Page> = withContext(Dispatchers.IO) {
@@ -1129,7 +1145,9 @@ class ScannerRepository(
             val pages = pageDao.getPagesListForDocument(docId)
             val folder = if (doc.folderId > 0) folderDao.getFolderById(doc.folderId) else null
             StorageVault.saveDocumentMetadata(context, doc, pages, folder?.name)
-        } catch (_: Throwable) {}
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
+        } catch (_: Exception) {}
     }
 
     private fun removeDocumentMetadata(docId: Long) {

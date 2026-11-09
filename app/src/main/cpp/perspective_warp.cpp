@@ -154,11 +154,21 @@ void warpPerspectiveNative(
     std::vector<std::thread> workers;
     workers.reserve(numThreads);
     int rowsPerThread = dstH / numThreads;
+    unsigned int started = 0;
 
-    for (unsigned int t = 0; t < numThreads; ++t) {
-        int startY = t * rowsPerThread;
-        int endY = (t == numThreads - 1) ? dstH : startY + rowsPerThread;
-        workers.emplace_back(warpRowRange, srcPixels, srcW, srcH, dstPixels, dstW, dstH, H, startY, endY);
+    try {
+        for (unsigned int t = 0; t < numThreads; ++t) {
+            int startY = t * rowsPerThread;
+            int endY = (t == numThreads - 1) ? dstH : startY + rowsPerThread;
+            workers.emplace_back(warpRowRange, srcPixels, srcW, srcH, dstPixels, dstW, dstH, H, startY, endY);
+            started++;
+        }
+    } catch (...) {
+        // Fallback: execute any remaining unstarted rows on the calling thread
+        int remainingStart = started * rowsPerThread;
+        if (remainingStart < dstH) {
+            warpRowRange(srcPixels, srcW, srcH, dstPixels, dstW, dstH, H, remainingStart, dstH);
+        }
     }
 
     for (auto& worker : workers) {

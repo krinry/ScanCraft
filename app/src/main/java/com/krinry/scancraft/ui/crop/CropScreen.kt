@@ -238,7 +238,8 @@ fun CropScreen(
                     }
                 } catch (_: Exception) { }
 
-                val totalRotation = (effectiveRotation + exifDegrees) % 360
+                // If explicit rotation is provided by caller (batch item or page), use it authoritatively without double-adding EXIF
+                val totalRotation = if (effectiveRotation != 0) effectiveRotation else exifDegrees
 
                 val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(file.absolutePath, opts)

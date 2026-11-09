@@ -306,8 +306,6 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                             val burstFile = File(cacheDir, "burst_${System.currentTimeMillis()}_${_batchQueue.value.size + 1}.jpg")
                             FileOutputStream(burstFile).use { it.write(bytes) }
 
-                            image.close()
-
                             val newItem = BatchCaptureItem(
                                 id = System.nanoTime(),
                                 rawFilePath = burstFile.absolutePath,
@@ -323,10 +321,11 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                                 onSuccess(newItem)
                             }
                         } catch (e: Exception) {
-                            image.close()
                             withContext(Dispatchers.Main) {
                                 onError(e)
                             }
+                        } finally {
+                            runCatching { image.close() }
                         }
                     }
                 }
@@ -446,8 +445,6 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                                 }
                             }
 
-                            image.close()
-
                             withContext(Dispatchers.Main) {
                                 if (_currentMode.value == CaptureMode.DOCUMENT) {
                                     _batchCount.value += 1
@@ -455,10 +452,11 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                                 onPhotoCaptured(tempFile.absolutePath)
                             }
                         } catch (e: Exception) {
-                            image.close()
                             withContext(Dispatchers.Main) {
                                 onError(e)
                             }
+                        } finally {
+                            runCatching { image.close() }
                         }
                     }
                 }

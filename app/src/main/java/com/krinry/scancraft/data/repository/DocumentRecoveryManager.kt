@@ -1,6 +1,7 @@
 package com.krinry.scancraft.data.repository
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.krinry.scancraft.data.local.AppDatabase
 import com.krinry.scancraft.data.model.Document
 import com.krinry.scancraft.data.model.Folder
@@ -30,7 +31,20 @@ object DocumentRecoveryManager {
     }
 
     /**
-     * Scans Documents/ScanCraft/meta/ and imports all backed up documents.
+     * Prevents path traversal vulnerabilities by enforcing strict file name boundaries.
+     */
+    private fun safeFileName(name: String): String? {
+        if (name.isBlank()) return null
+        val base = File(name).name
+        return if (base == name && !name.contains("..") && !name.contains("/") && !name.contains("\\")) {
+            name
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Scans Documents/ScanCraft/meta/ and imports all backed up documents atomically.
      */
     suspend fun scanAndRestoreFromVault(context: Context, database: AppDatabase): Int = withContext(Dispatchers.IO) {
         val metaDir = StorageVault.getMetaDirectory(context)
@@ -39,8 +53,18 @@ object DocumentRecoveryManager {
         val metaFiles = metaDir.listFiles { file -> file.isFile && file.name.endsWith("_meta.json") }
         if (metaFiles.isNullOrEmpty()) return@withContext 0
 
-        val scansDir = StorageVault.getScansDirectory(context)
-        val thumbsDir = StorageVault.getThumbsDirectory(context)
+        val candidateScanDirs = listOf(
+            StorageVault.getScansDirectory(context),
+            File(context.filesDir, "scans"),
+            File(context.getExternalFilesDir(null) ?: context.filesDir, "scans")
+        ).filter { it.exists() }
+
+        val candidateThumbDirs = listOf(
+            StorageVault.getThumbsDirectory(context),
+            File(context.filesDir, "thumbs"),
+            File(context.getExternalFilesDir(null) ?: context.filesDir, "thumbs")
+        ).filter { it.exists() }
+
         var restoredCount = 0
 
         for (file in metaFiles) {
@@ -48,64 +72,69 @@ object DocumentRecoveryManager {
                 val jsonStr = FileInputStream(file).bufferedReader(Charsets.UTF_8).use { it.readText() }
                 val json = JSONObject(jsonStr)
 
+                val originalDocId = json.optLong("documentId", 0L)
                 val title = json.optString("title", "Restored Document")
                 val createdTime = json.optLong("createdTime", System.currentTimeMillis())
                 val modifiedTime = json.optLong("modifiedTime", createdTime)
                 val tags = json.optString("tags", "")
                 val folderName = json.optString("folderName", "").trim()
 
-                // Resolve or create folder if needed
-                var folderId: Long = -1L
-                if (folderName.isNotEmpty()) {
-                    val existingFolder = database.folderDao().getFolderByName(folderName)
-                    folderId = existingFolder?.id ?: run {
-                        val newFolder = Folder(name = folderName, createdTime = createdTime)
-                        database.folderDao().insertFolder(newFolder)
-                    }
-                }
-
                 val pagesArray = json.optJSONArray("pages")
                 val pageCount = pagesArray?.length() ?: 0
 
-                val doc = Document(
-                    title = title,
-                    createdTime = createdTime,
-                    modifiedTime = modifiedTime,
-                    pageCount = pageCount,
-                    tags = tags,
-                    folderId = folderId
-                )
-                val newDocId = database.documentDao().insertDocument(doc)
+                // Atomic transaction per document
+                database.withTransaction {
+                    // Resolve or create folder if needed
+                    var folderId: Long = -1L
+                    if (folderName.isNotEmpty()) {
+                        val existingFolder = database.folderDao().getFolderByName(folderName)
+                        folderId = existingFolder?.id ?: run {
+                            val newFolder = Folder(name = folderName, createdTime = createdTime)
+                            database.folderDao().insertFolder(newFolder)
+                        }
+                    }
 
-                if (pagesArray != null) {
-                    for (i in 0 until pagesArray.length()) {
-                        val pJson = pagesArray.getJSONObject(i)
-                        val pageIndex = pJson.optInt("pageIndex", i)
-                        val procName = pJson.optString("processedFileName", "")
-                        val origName = pJson.optString("originalFileName", "")
-                        val thumbName = pJson.optString("thumbnailFileName", "")
+                    val doc = Document(
+                        id = if (originalDocId > 0L) originalDocId else 0L,
+                        title = title,
+                        createdTime = createdTime,
+                        modifiedTime = modifiedTime,
+                        pageCount = pageCount,
+                        tags = tags,
+                        folderId = folderId
+                    )
+                    val newDocId = database.documentDao().insertDocument(doc)
 
-                        val procFile = File(scansDir, procName)
-                        val origFile = File(scansDir, origName)
-                        val thumbFile = File(thumbsDir, thumbName)
+                    if (pagesArray != null) {
+                        for (i in 0 until pagesArray.length()) {
+                            val pJson = pagesArray.getJSONObject(i)
+                            val pageIndex = pJson.optInt("pageIndex", i)
+                            val procName = safeFileName(pJson.optString("processedFileName", ""))
+                            val origName = safeFileName(pJson.optString("originalFileName", ""))
+                            val thumbName = safeFileName(pJson.optString("thumbnailFileName", ""))
 
-                        val page = Page(
-                            documentId = newDocId,
-                            pageIndex = pageIndex,
-                            processedImagePath = if (procFile.exists()) procFile.absolutePath else "",
-                            originalImagePath = if (origFile.exists()) origFile.absolutePath else "",
-                            thumbnailPath = if (thumbFile.exists()) thumbFile.absolutePath else "",
-                            cropBorderJson = pJson.optString("cropBorderJson", ""),
-                            enhanceMode = pJson.optInt("enhanceMode", 1),
-                            rotationDegrees = pJson.optInt("rotationDegrees", 0),
-                            brightness = pJson.optInt("brightness", 0),
-                            contrast = pJson.optInt("contrast", 0),
-                            ocrText = pJson.optString("ocrText", ""),
-                            watermarkText = pJson.optString("watermarkText", ""),
-                            annotationsJson = pJson.optString("annotationsJson", ""),
-                            createdTime = createdTime
-                        )
-                        database.pageDao().insertPage(page)
+                            val procFile = procName?.let { name -> candidateScanDirs.map { File(it, name) }.firstOrNull { it.exists() } }
+                            val origFile = origName?.let { name -> candidateScanDirs.map { File(it, name) }.firstOrNull { it.exists() } }
+                            val thumbFile = thumbName?.let { name -> candidateThumbDirs.map { File(it, name) }.firstOrNull { it.exists() } }
+
+                            val page = Page(
+                                documentId = newDocId,
+                                pageIndex = pageIndex,
+                                processedImagePath = procFile?.absolutePath ?: "",
+                                originalImagePath = origFile?.absolutePath ?: "",
+                                thumbnailPath = thumbFile?.absolutePath ?: "",
+                                cropBorderJson = pJson.optString("cropBorderJson", ""),
+                                enhanceMode = pJson.optInt("enhanceMode", 1),
+                                rotationDegrees = pJson.optInt("rotationDegrees", 0),
+                                brightness = pJson.optInt("brightness", 0),
+                                contrast = pJson.optInt("contrast", 0),
+                                ocrText = pJson.optString("ocrText", ""),
+                                watermarkText = pJson.optString("watermarkText", ""),
+                                annotationsJson = pJson.optString("annotationsJson", ""),
+                                createdTime = createdTime
+                            )
+                            database.pageDao().insertPage(page)
+                        }
                     }
                 }
                 restoredCount++
