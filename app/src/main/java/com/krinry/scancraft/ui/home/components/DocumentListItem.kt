@@ -78,7 +78,7 @@ fun ScannerDocumentListItem(
                 .background(colors.surfaceSecondary)
                 .border(0.5.dp, colors.cardBorder, RoundedCornerShape(8.dp))
         ) {
-            val thumbFile = remember(document.id) {
+            val thumbFile = remember(document.id, DocumentThumbnailLoader.revision.intValue) {
                 DocumentThumbnailLoader.findThumbnailFile(context, document.id)
             }
 

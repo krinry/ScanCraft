@@ -72,7 +72,7 @@ fun ScannerDocumentGridCard(
                     .background(colors.surfaceSecondary),
                 contentAlignment = Alignment.Center
             ) {
-                val thumbFile = remember(document.id) {
+                val thumbFile = remember(document.id, DocumentThumbnailLoader.revision.intValue) {
                     DocumentThumbnailLoader.findThumbnailFile(context, document.id)
                 }
 

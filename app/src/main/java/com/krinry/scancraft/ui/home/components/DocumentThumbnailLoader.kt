@@ -16,6 +16,8 @@ object DocumentThumbnailLoader {
 
     private val thumbnailCache = LruCache<Long, File>(300)
 
+    val revision = androidx.compose.runtime.mutableIntStateOf(0)
+
     /**
      * Clears cached thumbnail file pointers for a specific document or the entire cache.
      */
@@ -25,6 +27,7 @@ object DocumentThumbnailLoader {
         } else {
             thumbnailCache.evictAll()
         }
+        revision.intValue++
     }
 
     /**

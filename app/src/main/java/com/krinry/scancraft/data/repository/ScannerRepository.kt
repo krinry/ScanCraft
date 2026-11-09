@@ -338,9 +338,11 @@ class ScannerRepository(
                 File(p.originalImagePath).delete()
                 File(p.thumbnailPath).delete()
             }
-            removeDocumentMetadata(id)
         }
         documentDao.batchDeleteDocuments(docIds)
+        for (id in docIds) {
+            removeDocumentMetadata(id)
+        }
     }
 
     // --- Page Operations ---
@@ -1131,6 +1133,7 @@ class ScannerRepository(
             copiedPages
         } catch (e: Exception) {
             copiedFiles.forEach { it.delete() }
+            copiedPages.forEach { runCatching { pageDao.deletePage(it) } }
             throw e
         }
     }
@@ -1161,9 +1164,14 @@ class ScannerRepository(
         }
     }
 
-    private fun removeDocumentMetadata(docId: Long) {
-        try {
-            StorageVault.deleteDocumentMetadata(context, docId)
-        } catch (_: Throwable) {}
+    private suspend fun removeDocumentMetadata(docId: Long) {
+        val lock = documentSyncLocks.computeIfAbsent(docId) { Mutex() }
+        lock.withLock {
+            try {
+                StorageVault.deleteDocumentMetadata(context, docId)
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
+            } catch (_: Exception) {}
+        }
     }
 }

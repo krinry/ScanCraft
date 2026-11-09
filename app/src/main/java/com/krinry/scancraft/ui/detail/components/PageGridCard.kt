@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
@@ -106,19 +107,21 @@ fun PageGridCard(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val hasPerm = com.krinry.scancraft.data.repository.StorageVault.hasStoragePermission(context)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            Icons.Default.Lock,
-                            contentDescription = "Permission Required",
+                            if (!hasPerm) Icons.Default.Lock else Icons.Default.Description,
+                            contentDescription = if (!hasPerm) "Permission Required" else "File Missing",
                             tint = colors.primary,
                             modifier = Modifier.size(36.dp)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Permission Required",
+                            text = if (!hasPerm) "Permission Required" else "File Missing",
                             style = MaterialTheme.typography.labelSmall,
                             color = colors.textSecondary
                         )

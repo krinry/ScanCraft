@@ -339,39 +339,50 @@ fun PageViewerScreen(
                             )
                         }
                     } else {
+                        val hasStoragePerm = StorageVault.hasStoragePermission(context)
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
                             modifier = Modifier.padding(24.dp)
                         ) {
                             Icon(
-                                Icons.Default.Lock,
+                                if (!hasStoragePerm) Icons.Default.Lock else Icons.Default.Lock,
                                 contentDescription = null,
                                 tint = ScannerGreen,
                                 modifier = Modifier.size(54.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "All Files Access Required",
+                                text = if (!hasStoragePerm) "All Files Access Required" else "File Missing or Unavailable",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Enable storage permission in Settings to view this high-resolution document.",
+                                text = if (!hasStoragePerm) {
+                                    "Enable storage permission in Settings to view this high-resolution document."
+                                } else {
+                                    "The file for this page could not be located in storage."
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color(0xFFCCCCCC),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = {
-                                    context.startActivity(StorageVault.getStoragePermissionIntent(context))
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = ScannerGreen)
-                            ) {
-                                Text("Enable Access", color = Color.White)
+                            if (!hasStoragePerm) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = {
+                                        try {
+                                            context.startActivity(StorageVault.getStoragePermissionIntent(context))
+                                        } catch (_: Exception) {
+                                            Toast.makeText(context, "Please enable All Files Access in Settings", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ScannerGreen)
+                                ) {
+                                    Text("Enable Access", color = Color.White)
+                                }
                             }
                         }
                     }

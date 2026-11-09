@@ -77,7 +77,7 @@ fun CropScreen(
     docId: Long = -1L,
     page: Page? = null,
     initialQuad: DocumentQuadrilateral? = null,
-    rotationDegrees: Int = 0,
+    rotationDegrees: Int? = null,
     onCropConfirmed: ((DocumentQuadrilateral) -> Unit)? = null,
     onNavigateToFilter: ((imagePath: String, docId: Long, borderJson: String) -> Unit)? = null,
     onPageUpdated: (() -> Unit)? = null,
@@ -101,8 +101,12 @@ fun CropScreen(
     }
 
     val effectiveDocId = page?.documentId ?: docId
-    val effectiveRotation = remember(page, rotationDegrees) {
-        ((page?.rotationDegrees ?: 0) + rotationDegrees) % 360
+    val explicitRotation = remember(page, rotationDegrees) {
+        if (page != null) {
+            (page.rotationDegrees + (rotationDegrees ?: 0)) % 360
+        } else {
+            rotationDegrees
+        }
     }
 
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -222,7 +226,7 @@ fun CropScreen(
     }
 
     // Decode sample bitmap for high performance rendering
-    LaunchedEffect(effectiveImagePath, effectiveRotation) {
+    LaunchedEffect(effectiveImagePath, explicitRotation) {
         withContext(Dispatchers.IO) {
             val file = File(effectiveImagePath)
             if (file.exists()) {
@@ -239,7 +243,7 @@ fun CropScreen(
                 } catch (_: Exception) { }
 
                 // If explicit rotation is provided by caller (batch item or page), use it authoritatively without double-adding EXIF
-                val totalRotation = if (effectiveRotation != 0) effectiveRotation else exifDegrees
+                val totalRotation = explicitRotation ?: exifDegrees
 
                 val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(file.absolutePath, opts)
