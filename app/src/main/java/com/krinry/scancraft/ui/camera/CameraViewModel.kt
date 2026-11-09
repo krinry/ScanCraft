@@ -468,6 +468,10 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
+    /**
+     * Imports an existing image file into the batch queue, reading and preserving its EXIF rotation
+     * authoritatively so the thumbnail and downstream crop pipelines share identical orientation.
+     */
     fun addDocumentItemFromFile(
         filePath: String,
         onSuccess: (BatchCaptureItem) -> Unit = {}
@@ -484,13 +488,32 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                     inSampleSize = sampleSize
                     inPreferredConfig = Bitmap.Config.ARGB_8888
                 }
-                val thumbBmp = BitmapFactory.decodeFile(filePath, thumbOpts)
+                var thumbBmp = BitmapFactory.decodeFile(filePath, thumbOpts)
+
+                val exifRotation = try {
+                    val exif = android.media.ExifInterface(filePath)
+                    when (exif.getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL)) {
+                        android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                        android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                        android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                        else -> 0
+                    }
+                } catch (_: Exception) { 0 }
+
+                if (exifRotation != 0 && thumbBmp != null) {
+                    val matrix = Matrix().apply { postRotate(exifRotation.toFloat()) }
+                    val rotatedThumb = Bitmap.createBitmap(thumbBmp, 0, 0, thumbBmp.width, thumbBmp.height, matrix, true)
+                    if (rotatedThumb != thumbBmp) {
+                        thumbBmp.recycle()
+                        thumbBmp = rotatedThumb
+                    }
+                }
 
                 val newItem = BatchCaptureItem(
                     id = System.nanoTime(),
                     rawFilePath = filePath,
                     thumbnailBitmap = thumbBmp ?: Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
-                    rotationDegrees = 0,
+                    rotationDegrees = exifRotation,
                     cropQuad = null
                 )
 
@@ -506,6 +529,9 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Persists all pending batch capture items as document pages into storage.
+     */
     suspend fun saveBatchAsDraft(docId: Long = -1L): Long = withContext(Dispatchers.IO) {
         val items = _batchQueue.value
         if (items.isEmpty()) return@withContext -1L

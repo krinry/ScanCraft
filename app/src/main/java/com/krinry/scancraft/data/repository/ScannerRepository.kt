@@ -1164,6 +1164,9 @@ class ScannerRepository(
         }
     }
 
+    /**
+     * Removes document metadata from the storage vault under the per-document lock.
+     */
     private suspend fun removeDocumentMetadata(docId: Long) {
         val lock = documentSyncLocks.computeIfAbsent(docId) { Mutex() }
         lock.withLock {

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.outlined.ZoomIn
 import com.krinry.scancraft.data.repository.StorageVault
@@ -346,7 +347,7 @@ fun PageViewerScreen(
                             modifier = Modifier.padding(24.dp)
                         ) {
                             Icon(
-                                if (!hasStoragePerm) Icons.Default.Lock else Icons.Default.Lock,
+                                if (!hasStoragePerm) Icons.Default.Lock else Icons.Default.Description,
                                 contentDescription = null,
                                 tint = ScannerGreen,
                                 modifier = Modifier.size(54.dp)
