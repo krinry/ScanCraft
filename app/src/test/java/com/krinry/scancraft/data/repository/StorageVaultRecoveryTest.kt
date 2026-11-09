@@ -59,6 +59,7 @@ class StorageVaultRecoveryTest {
         every { database.pageDao() } returns pageDao
         every { database.folderDao() } returns folderDao
         coEvery { documentDao.getDocumentById(any()) } returns null
+        coEvery { documentDao.getAllDocumentsList() } returns emptyList()
 
         DocumentThumbnailLoader.invalidateCache()
     }
@@ -358,12 +359,13 @@ class StorageVaultRecoveryTest {
 
     @Test
     fun recoveryResolvesIdCollisionWithoutReplacingExistingDocument() = runTest {
-        val doc = Document(id = 88L, title = "Backed Up Colliding Doc")
+        val doc = Document(id = 88L, title = "Backed Up Colliding Doc", createdTime = 1000L)
         StorageVault.saveDocumentMetadata(context, doc, emptyList())
 
-        // Database already contains an existing document with id 88L
-        val existingDoc = Document(id = 88L, title = "Already Existing Doc")
+        // Database already contains an existing document with id 88L but different title/time
+        val existingDoc = Document(id = 88L, title = "Already Existing Doc", createdTime = 2000L)
         coEvery { documentDao.getDocumentById(88L) } returns existingDoc
+        coEvery { documentDao.getAllDocumentsList() } returns listOf(existingDoc)
 
         val insertedDocSlot = slot<Document>()
         coEvery { documentDao.insertDocument(capture(insertedDocSlot)) } returns 200L
@@ -375,5 +377,35 @@ class StorageVaultRecoveryTest {
         assertTrue(insertedDocSlot.isCaptured)
         assertEquals(0L, insertedDocSlot.captured.id)
         assertEquals("Backed Up Colliding Doc", insertedDocSlot.captured.title)
+    }
+
+    @Test
+    fun recoverySkipsAlreadyRestoredDocumentToPreventDuplicates() = runTest {
+        val doc = Document(id = 55L, title = "My Passport", createdTime = 12345L)
+        StorageVault.saveDocumentMetadata(context, doc, emptyList())
+
+        // Database already has this exact document
+        coEvery { documentDao.getAllDocumentsList() } returns listOf(doc)
+        coEvery { documentDao.getDocumentById(55L) } returns doc
+
+        val restored = DocumentRecoveryManager.scanAndRestoreFromVault(context, database)
+        // Must be 0 because it's already restored!
+        assertEquals(0, restored)
+        coVerify(exactly = 0) { documentDao.insertDocument(any()) }
+    }
+
+    @Test
+    fun recoveryCleansUpPreExistingDuplicatesInDatabase() = runTest {
+        val doc1 = Document(id = 1L, title = "Invoice", createdTime = 9999L)
+        val doc2 = Document(id = 2L, title = "Invoice", createdTime = 9999L) // duplicate!
+
+        coEvery { documentDao.getAllDocumentsList() } returns listOf(doc1, doc2)
+        coEvery { pageDao.getPagesListForDocument(2L) } returns emptyList()
+
+        DocumentRecoveryManager.scanAndRestoreFromVault(context, database)
+
+        // Must delete the duplicate doc2
+        coVerify(exactly = 1) { documentDao.deleteDocument(doc2) }
+        coVerify(exactly = 0) { documentDao.deleteDocument(doc1) }
     }
 }
