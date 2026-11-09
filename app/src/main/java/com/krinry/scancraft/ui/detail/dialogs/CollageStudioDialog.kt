@@ -1401,6 +1401,7 @@ private fun CollageSheetCard(
 ) {
     var sheetSize by remember { mutableStateOf(IntSize.Zero) }
     val snapGuidesState = remember { SnapGuidesState() }
+    val colors = ScannerTheme.colors
 
     Column(
         modifier = Modifier.fillMaxWidth(0.92f),
@@ -1416,7 +1417,7 @@ private fun CollageSheetCard(
         ) {
             Text(
                 text = "Page ${sheetIndex + 1} of $totalSheets",
-                color = Color(0xFFCCCCCC),
+                color = colors.textSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )

@@ -1526,10 +1526,6 @@ fun CameraScreen(
                 docId = docId,
                 onBatchCropConfirmed = { resultsMap ->
                     val path = pendingCropImagePath
-                    if (path != null && !resultsMap.containsKey(0L)) {
-                        Toast.makeText(context, "Please finish cropping the new capture first", Toast.LENGTH_SHORT).show()
-                        return@CropScreen
-                    }
                     resultsMap.forEach { (id, res) ->
                         if (id == 0L && path != null) {
                             viewModel.addDocumentItemFromFile(path) { newItem ->
@@ -1538,6 +1534,9 @@ fun CameraScreen(
                         } else {
                             viewModel.updateBatchItemCrop(id, res.quad, res.rotationDegrees)
                         }
+                    }
+                    if (path != null && !resultsMap.containsKey(0L)) {
+                        viewModel.addDocumentItemFromFile(path)
                     }
                     pendingCropImagePath = null
                 },
@@ -1548,6 +1547,10 @@ fun CameraScreen(
                     pendingCropImagePath = null
                 },
                 onClose = {
+                    val path = pendingCropImagePath
+                    if (path != null) {
+                        viewModel.addDocumentItemFromFile(path)
+                    }
                     pendingCropImagePath = null
                 }
             )

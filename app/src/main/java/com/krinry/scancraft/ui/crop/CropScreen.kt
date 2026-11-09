@@ -84,8 +84,11 @@ data class BatchCropResult(
  */
 fun Page.toCropItem(explicitRotation: Int? = null): CropItem {
     val origFile = File(originalImagePath)
-    val path = if (origFile.exists() && origFile.length() > 0) origFile.absolutePath else processedImagePath
-    val rot = (rotationDegrees + (explicitRotation ?: 0)) % 360
+    val hasOriginal = origFile.exists() && origFile.length() > 0
+    val path = if (hasOriginal) origFile.absolutePath else processedImagePath
+    // If using fallback processed image, previous page rotation is already baked into pixels
+    val baseRot = if (hasOriginal) rotationDegrees else 0
+    val rot = (baseRot + (explicitRotation ?: 0)) % 360
     val pQuad = cropBorderJson
         .takeIf { it.isNotBlank() }
         ?.split(",")
@@ -300,6 +303,10 @@ fun CropScreen(
 
     fun switchToPage(newIndex: Int) {
         if (newIndex in resolvedItems.indices && newIndex != currentIndex) {
+            if (quad?.isValidConvex() == false) {
+                Toast.makeText(context, "Invalid boundary geometry", Toast.LENGTH_SHORT).show()
+                return
+            }
             saveCurrentQuad()
             zoomScale = 1f
             panOffset = Offset.Zero
@@ -409,14 +416,18 @@ fun CropScreen(
         } else if (currentItem?.page != null) {
             // Existing single/multi page workflow: warp, apply existing enhancements, update Room DB & file
             val targetPage = currentItem.page
-            val effRot = itemRotations[currentIndex] ?: targetPage.rotationDegrees
+            val isFallback = targetPage.originalImagePath.isBlank() ||
+                !File(targetPage.originalImagePath).exists() ||
+                currentItem.imagePath == targetPage.processedImagePath
+            val effRot = itemRotations[currentIndex] ?: currentItem.rotationDegrees
+            val rotToApply = effRot
             isSaving = true
             coroutineScope.launch(Dispatchers.IO) {
                 try {
                     val rawFile = File(currentItem.imagePath)
                     var origBmp = BitmapFactory.decodeFile(rawFile.absolutePath) ?: bmp
-                    if (effRot != 0) {
-                        val matrix = Matrix().apply { postRotate(effRot.toFloat()) }
+                    if (rotToApply != 0) {
+                        val matrix = Matrix().apply { postRotate(rotToApply.toFloat()) }
                         val rotated = Bitmap.createBitmap(origBmp, 0, 0, origBmp.width, origBmp.height, matrix, true)
                         if (rotated != origBmp) {
                             origBmp.recycle()
@@ -450,7 +461,11 @@ fun CropScreen(
                         pageId = targetPage.id,
                         newBitmap = warped,
                         cropBorderJson = borderStr,
-                        rotationDegrees = effRot
+                        rotationDegrees = if (isFallback) {
+                            (targetPage.rotationDegrees + effRot) % 360
+                        } else {
+                            effRot
+                        }
                     )
 
                     withContext(Dispatchers.Main) {

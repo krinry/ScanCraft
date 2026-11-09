@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.krinry.scancraft.ScanCraftApp
@@ -253,9 +254,8 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun addBatchItem(item: BatchCaptureItem) {
-        val updated = _batchQueue.value + item
-        _batchQueue.value = updated
-        _batchCount.value = updated.size
+        _batchQueue.update { it + item }
+        _batchCount.value = _batchQueue.value.size
     }
 
     fun captureBatchPhoto(
@@ -315,9 +315,8 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                             )
 
                             withContext(Dispatchers.Main) {
-                                val updated = _batchQueue.value + newItem
-                                _batchQueue.value = updated
-                                _batchCount.value = updated.size
+                                _batchQueue.update { it + newItem }
+                                _batchCount.value = _batchQueue.value.size
                                 onSuccess(newItem)
                             }
                         } catch (e: Exception) {
@@ -346,59 +345,62 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                     File(itemToRemove.rawFilePath).delete()
                 } catch (e: Exception) { /* Ignore */ }
             }
-            val updated = current.filter { it.id != id }
-            _batchQueue.value = updated
-            _batchCount.value = updated.size
+            _batchQueue.update { list -> list.filter { it.id != id } }
+            _batchCount.value = _batchQueue.value.size
         }
     }
 
     fun rotateBatchItem(id: Long, clockwise: Boolean = true) {
         val delta = if (clockwise) 90 else -90
-        _batchQueue.value = _batchQueue.value.map { item ->
-            if (item.id == id) {
-                val newAngle = (item.rotationDegrees + delta + 360) % 360
-                val matrix = Matrix().apply { postRotate(delta.toFloat()) }
-                val rotatedThumb = Bitmap.createBitmap(
-                    item.thumbnailBitmap,
-                    0, 0,
-                    item.thumbnailBitmap.width,
-                    item.thumbnailBitmap.height,
-                    matrix,
-                    true
-                )
-                item.copy(
-                    rotationDegrees = newAngle,
-                    thumbnailBitmap = rotatedThumb
-                )
-            } else {
-                item
+        _batchQueue.update { list ->
+            list.map { item ->
+                if (item.id == id) {
+                    val newAngle = (item.rotationDegrees + delta + 360) % 360
+                    val matrix = Matrix().apply { postRotate(delta.toFloat()) }
+                    val rotatedThumb = Bitmap.createBitmap(
+                        item.thumbnailBitmap,
+                        0, 0,
+                        item.thumbnailBitmap.width,
+                        item.thumbnailBitmap.height,
+                        matrix,
+                        true
+                    )
+                    item.copy(
+                        rotationDegrees = newAngle,
+                        thumbnailBitmap = rotatedThumb
+                    )
+                } else {
+                    item
+                }
             }
         }
     }
 
     fun updateBatchItemCrop(id: Long, quad: DocumentQuadrilateral, rotationDegrees: Int? = null) {
-        _batchQueue.value = _batchQueue.value.map { item ->
-            if (item.id != id) return@map item
-            val newRot = rotationDegrees ?: item.rotationDegrees
-            val delta = ((newRot - item.rotationDegrees) % 360 + 360) % 360
-            val thumb = if (delta != 0) {
-                val m = Matrix().apply { postRotate(delta.toFloat()) }
-                Bitmap.createBitmap(
-                    item.thumbnailBitmap,
-                    0, 0,
-                    item.thumbnailBitmap.width,
-                    item.thumbnailBitmap.height,
-                    m,
-                    true
+        _batchQueue.update { list ->
+            list.map { item ->
+                if (item.id != id) return@map item
+                val newRot = rotationDegrees ?: item.rotationDegrees
+                val delta = ((newRot - item.rotationDegrees) % 360 + 360) % 360
+                val thumb = if (delta != 0) {
+                    val m = Matrix().apply { postRotate(delta.toFloat()) }
+                    Bitmap.createBitmap(
+                        item.thumbnailBitmap,
+                        0, 0,
+                        item.thumbnailBitmap.width,
+                        item.thumbnailBitmap.height,
+                        m,
+                        true
+                    )
+                } else {
+                    item.thumbnailBitmap
+                }
+                item.copy(
+                    cropQuad = quad,
+                    rotationDegrees = newRot,
+                    thumbnailBitmap = thumb
                 )
-            } else {
-                item.thumbnailBitmap
             }
-            item.copy(
-                cropQuad = quad,
-                rotationDegrees = newRot,
-                thumbnailBitmap = thumb
-            )
         }
     }
 
@@ -411,7 +413,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 } catch (e: Exception) { /* Ignore */ }
             }
         }
-        _batchQueue.value = emptyList()
+        _batchQueue.update { emptyList() }
         _batchCount.value = 0
     }
 
@@ -534,9 +536,8 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 )
 
                 withContext(Dispatchers.Main) {
-                    val updated = _batchQueue.value + newItem
-                    _batchQueue.value = updated
-                    _batchCount.value = updated.size
+                    _batchQueue.update { it + newItem }
+                    _batchCount.value = _batchQueue.value.size
                     onSuccess(newItem)
                 }
             } catch (e: Exception) {
@@ -583,7 +584,8 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 e.printStackTrace()
             }
         }
-        _batchQueue.value = emptyList()
+        _batchQueue.update { emptyList() }
+        _batchCount.value = 0
         _batchCount.value = 0
         savedId
     }
