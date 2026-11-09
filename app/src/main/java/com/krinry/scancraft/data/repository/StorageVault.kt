@@ -91,6 +91,9 @@ object StorageVault {
         }
     }
 
+    /**
+     * Resolves an available fallback directory when public external storage is unavailable.
+     */
     private fun resolveFallbackDir(context: Context): File {
         val ext = try { context.getExternalFilesDir(null) } catch (_: Throwable) { null }
         if (ext != null && !ext.path.isNullOrEmpty()) {
