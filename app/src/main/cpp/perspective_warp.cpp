@@ -1,4 +1,8 @@
 #include "native_scanner.h"
+#include <thread>
+#include <vector>
+#include <algorithm>
+#include <cmath>
 
 // Invert 3x3 matrix
 static bool invert3x3(const double A[3][3], double inv[3][3]) {
@@ -75,17 +79,13 @@ static bool computeHomography(int dstW, int dstH, const Quad& q, double H[3][3])
     return true;
 }
 
-void warpPerspectiveNative(
+static void warpRowRange(
     const uint32_t* srcPixels, int srcW, int srcH,
     uint32_t* dstPixels, int dstW, int dstH,
-    const Quad& quad
+    const double H[3][3],
+    int startY, int endY
 ) {
-    if (!srcPixels || !dstPixels || dstW <= 0 || dstH <= 0 || srcW <= 0 || srcH <= 0) return;
-
-    double H[3][3];
-    if (!computeHomography(dstW, dstH, quad, H)) return;
-
-    for (int y = 0; y < dstH; ++y) {
+    for (int y = startY; y < endY; ++y) {
         uint32_t* dstRow = dstPixels + y * dstW;
         double h01_y_h02 = H[0][1] * y + H[0][2];
         double h11_y_h12 = H[1][1] * y + H[1][2];
@@ -127,6 +127,43 @@ void warpPerspectiveNative(
             } else {
                 dstRow[x] = 0xFFFFFFFF; // white outside boundary
             }
+        }
+    }
+}
+
+void warpPerspectiveNative(
+    const uint32_t* srcPixels, int srcW, int srcH,
+    uint32_t* dstPixels, int dstW, int dstH,
+    const Quad& quad
+) {
+    if (!srcPixels || !dstPixels || dstW <= 0 || dstH <= 0 || srcW <= 0 || srcH <= 0) return;
+
+    double H[3][3];
+    if (!computeHomography(dstW, dstH, quad, H)) return;
+
+    unsigned int numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 4;
+    numThreads = std::min(numThreads, 8u);
+
+    // Single-threaded path for small images to avoid thread creation overhead
+    if (dstH < 120 || numThreads <= 1) {
+        warpRowRange(srcPixels, srcW, srcH, dstPixels, dstW, dstH, H, 0, dstH);
+        return;
+    }
+
+    std::vector<std::thread> workers;
+    workers.reserve(numThreads);
+    int rowsPerThread = dstH / numThreads;
+
+    for (unsigned int t = 0; t < numThreads; ++t) {
+        int startY = t * rowsPerThread;
+        int endY = (t == numThreads - 1) ? dstH : startY + rowsPerThread;
+        workers.emplace_back(warpRowRange, srcPixels, srcW, srcH, dstPixels, dstW, dstH, H, startY, endY);
+    }
+
+    for (auto& worker : workers) {
+        if (worker.joinable()) {
+            worker.join();
         }
     }
 }

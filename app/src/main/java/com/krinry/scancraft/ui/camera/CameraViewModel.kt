@@ -301,26 +301,10 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                                 }
                             }
 
-                            // Write raw JPEG to cacheDir/temp_scans/burst_...jpg
+                            // Fast burst capture: write raw JPEG directly to cache without full bitmap decode overhead
                             val cacheDir = File(context.cacheDir, "temp_scans").apply { if (!exists()) mkdirs() }
                             val burstFile = File(cacheDir, "burst_${System.currentTimeMillis()}_${_batchQueue.value.size + 1}.jpg")
-
-                            if (rotation == 0) {
-                                FileOutputStream(burstFile).use { it.write(bytes) }
-                            } else {
-                                val fullBmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                                if (fullBmp != null) {
-                                    val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
-                                    val rotatedFull = Bitmap.createBitmap(fullBmp, 0, 0, fullBmp.width, fullBmp.height, matrix, true)
-                                    FileOutputStream(burstFile).use { out ->
-                                        rotatedFull.compress(Bitmap.CompressFormat.JPEG, 92, out)
-                                    }
-                                    if (rotatedFull != fullBmp) fullBmp.recycle()
-                                    rotatedFull.recycle()
-                                } else {
-                                    FileOutputStream(burstFile).use { it.write(bytes) }
-                                }
-                            }
+                            FileOutputStream(burstFile).use { it.write(bytes) }
 
                             image.close()
 
@@ -328,7 +312,7 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                                 id = System.nanoTime(),
                                 rawFilePath = burstFile.absolutePath,
                                 thumbnailBitmap = thumbBmp ?: Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
-                                rotationDegrees = 0,
+                                rotationDegrees = rotation,
                                 cropQuad = null
                             )
 
@@ -431,37 +415,52 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
-                    val buffer = image.planes[0].buffer
-                    val bytes = ByteArray(buffer.remaining())
-                    buffer.get(bytes)
-                    val rotationDegrees = image.imageInfo.rotationDegrees
+                    viewModelScope.launch(Dispatchers.IO) {
+                        try {
+                            val buffer = image.planes[0].buffer
+                            val bytes = ByteArray(buffer.remaining())
+                            buffer.get(bytes)
+                            val rotationDegrees = image.imageInfo.rotationDegrees
 
-                    var bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    if (rotationDegrees != 0 && bitmap != null) {
-                        val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
-                        bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-                    }
+                            var bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            if (rotationDegrees != 0 && bitmap != null) {
+                                val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
+                                val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                                if (rotatedBitmap != bitmap) {
+                                    bitmap.recycle()
+                                    bitmap = rotatedBitmap
+                                }
+                            }
 
-                    // Save raw photo to cache file
-                    val cacheDir = File(context.cacheDir, "temp_scans").apply { if (!exists()) mkdirs() }
-                    val tempFile = File(cacheDir, "temp_capture_${System.currentTimeMillis()}.jpg")
-                    if (bitmap != null) {
-                        FileOutputStream(tempFile).use { out ->
-                            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                            // Save raw photo to cache file
+                            val cacheDir = File(context.cacheDir, "temp_scans").apply { if (!exists()) mkdirs() }
+                            val tempFile = File(cacheDir, "temp_capture_${System.currentTimeMillis()}.jpg")
+                            if (bitmap != null) {
+                                FileOutputStream(tempFile).use { out ->
+                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                                }
+                                bitmap.recycle()
+                            } else {
+                                FileOutputStream(tempFile).use { out ->
+                                    out.write(bytes)
+                                }
+                            }
+
+                            image.close()
+
+                            withContext(Dispatchers.Main) {
+                                if (_currentMode.value == CaptureMode.DOCUMENT) {
+                                    _batchCount.value += 1
+                                }
+                                onPhotoCaptured(tempFile.absolutePath)
+                            }
+                        } catch (e: Exception) {
+                            image.close()
+                            withContext(Dispatchers.Main) {
+                                onError(e)
+                            }
                         }
-                    } else {
-                        FileOutputStream(tempFile).use { out ->
-                            out.write(bytes)
-                        }
                     }
-
-                    image.close()
-
-                    if (_currentMode.value == CaptureMode.DOCUMENT) {
-                        _batchCount.value += 1
-                    }
-
-                    onPhotoCaptured(tempFile.absolutePath)
                 }
 
                 override fun onError(exception: ImageCaptureException) {

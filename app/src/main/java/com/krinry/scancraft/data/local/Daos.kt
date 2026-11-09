@@ -11,6 +11,9 @@ interface DocumentDao {
     @Query("SELECT * FROM documents ORDER BY modifiedTime DESC")
     fun getAllDocuments(): Flow<List<Document>>
 
+    @Query("SELECT * FROM documents ORDER BY modifiedTime DESC")
+    suspend fun getAllDocumentsList(): List<Document>
+
     @Query("SELECT * FROM documents WHERE folderId = :folderId ORDER BY modifiedTime DESC")
     fun getDocumentsInFolder(folderId: Long): Flow<List<Document>>
 
@@ -75,6 +78,9 @@ interface FolderDao {
 
     @Query("SELECT * FROM folders WHERE id = :id")
     suspend fun getFolderById(id: Long): Folder?
+
+    @Query("SELECT * FROM folders WHERE name = :name LIMIT 1")
+    suspend fun getFolderByName(name: String): Folder?
 
     @Query("SELECT * FROM folders WHERE parentFolderId = -1 ORDER BY orderIndex ASC, createdTime DESC")
     fun getRootFolders(): Flow<List<Folder>>
