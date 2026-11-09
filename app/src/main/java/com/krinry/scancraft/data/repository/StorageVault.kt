@@ -101,21 +101,33 @@ object StorageVault {
         return File("/tmp/scancraft_vault")
     }
 
+    /**
+     * Resolves and ensures existence of the full-resolution scans directory in the vault.
+     */
     fun getScansDirectory(context: Context): File {
         val root = getVaultRoot(context)
         return File(root, "scans").apply { if (!exists()) mkdirs() }
     }
 
+    /**
+     * Resolves and ensures existence of the downsampled thumbnails directory in the vault.
+     */
     fun getThumbsDirectory(context: Context): File {
         val root = getVaultRoot(context)
         return File(root, "thumbs").apply { if (!exists()) mkdirs() }
     }
 
+    /**
+     * Resolves and ensures existence of exported PDF documents directory in the vault.
+     */
     fun getPdfsDirectory(context: Context): File {
         val root = getVaultRoot(context)
         return File(root, "PDFs").apply { if (!exists()) mkdirs() }
     }
 
+    /**
+     * Resolves and ensures existence of document metadata directory in the vault.
+     */
     fun getMetaDirectory(context: Context): File {
         val root = getVaultRoot(context)
         return File(root, "meta").apply { if (!exists()) mkdirs() }

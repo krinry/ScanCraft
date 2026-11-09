@@ -16,6 +16,9 @@ object DocumentThumbnailLoader {
 
     private val thumbnailCache = LruCache<Long, File>(300)
 
+    /**
+     * Clears cached thumbnail file pointers for a specific document or the entire cache.
+     */
     fun invalidateCache(docId: Long? = null) {
         if (docId != null) {
             thumbnailCache.remove(docId)
@@ -24,6 +27,10 @@ object DocumentThumbnailLoader {
         }
     }
 
+    /**
+     * Resolves the thumbnail file for a given document id using memory cache, vault thumbs,
+     * internal thumbs, and fallback full scan images.
+     */
     fun findThumbnailFile(context: Context, docId: Long): File? {
         val cached = thumbnailCache.get(docId)
         if (cached != null && cached.exists() && cached.length() > 0) {
