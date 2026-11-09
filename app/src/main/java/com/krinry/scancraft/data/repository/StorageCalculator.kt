@@ -43,16 +43,18 @@ data class StorageStats(
 object StorageCalculator {
 
     suspend fun calculate(context: Context): StorageStats = withContext(Dispatchers.IO) {
-        val scansDir = File(context.filesDir, "scans")
-        val thumbsDir = File(context.filesDir, "thumbs")
+        val vaultScans = StorageVault.getScansDirectory(context)
+        val vaultThumbs = StorageVault.getThumbsDirectory(context)
+        val internalScans = File(context.filesDir, "scans")
+        val internalThumbs = File(context.filesDir, "thumbs")
         val cacheDir = context.cacheDir
 
-        val scansBytes = calculateDirSize(scansDir)
-        val thumbsBytes = calculateDirSize(thumbsDir)
+        val scansBytes = calculateDirSize(vaultScans) + (if (internalScans != vaultScans) calculateDirSize(internalScans) else 0L)
+        val thumbsBytes = calculateDirSize(vaultThumbs) + (if (internalThumbs != vaultThumbs) calculateDirSize(internalThumbs) else 0L)
         val cacheBytes = calculateDirSize(cacheDir)
         val totalAppBytes = scansBytes + thumbsBytes + cacheBytes
 
-        val filesCount = (scansDir.listFiles()?.size ?: 0)
+        val filesCount = (vaultScans.listFiles()?.size ?: 0) + (if (internalScans != vaultScans) (internalScans.listFiles()?.size ?: 0) else 0)
 
         val (freeDeviceBytes, totalDeviceBytes) = try {
             val stat = StatFs(Environment.getDataDirectory().path)

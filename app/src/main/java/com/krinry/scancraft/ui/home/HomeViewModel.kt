@@ -324,4 +324,45 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /**
+     * Scans the storage vault (Documents/ScanCraft) and restores all backed-up documents.
+     */
+    fun restoreFromVault(onDone: (Int) -> Unit = {}) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val restored = com.krinry.scancraft.data.repository.DocumentRecoveryManager.scanAndRestoreFromVault(
+                context = getApplication(),
+                database = db
+            )
+            com.krinry.scancraft.data.repository.DocumentRecoveryManager.syncThumbnailsToPrivateCache(
+                context = getApplication(),
+                database = db
+            )
+            withContext(Dispatchers.Main) {
+                onDone(restored)
+            }
+        }
+    }
+
+    /**
+     * Automatically checks if the local database is empty and restores documents
+     * from the vault without relying on asynchronous or filtered UI state.
+     */
+    fun autoRestoreIfDatabaseEmpty(onDone: (Int) -> Unit = {}) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val restored = com.krinry.scancraft.data.repository.DocumentRecoveryManager.autoRestoreIfDatabaseEmpty(
+                context = getApplication(),
+                database = db
+            )
+            com.krinry.scancraft.data.repository.DocumentRecoveryManager.syncThumbnailsToPrivateCache(
+                context = getApplication(),
+                database = db
+            )
+            if (restored > 0) {
+                withContext(Dispatchers.Main) {
+                    onDone(restored)
+                }
+            }
+        }
+    }
 }

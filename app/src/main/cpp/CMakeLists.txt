@@ -2,6 +2,16 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project("scancraft")
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Aggressive compiler optimization flags for commercial-grade speed
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -flto -fno-math-errno -fvisibility=hidden")
+
+if(ANDROID_ABI MATCHES "arm64-v8a")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv8-a+simd")
+endif()
+
 set(THORVG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thorvg")
 
 file(GLOB THORVG_COMMON_SRCS "${THORVG_DIR}/src/common/*.cpp")

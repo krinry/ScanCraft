@@ -33,9 +33,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.krinry.scancraft.data.model.Document
 import com.krinry.scancraft.data.model.Folder
+import com.krinry.scancraft.data.repository.StorageVault
 import com.krinry.scancraft.ui.home.components.*
 import com.krinry.scancraft.ui.home.dialogs.*
 import com.krinry.scancraft.ui.pdf.PdfExportDialog
@@ -78,6 +82,32 @@ fun HomeScreen(
     var docToDelete by remember { mutableStateOf<Document?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
+
+    var hasStoragePermission by remember { mutableStateOf(StorageVault.hasStoragePermission(context)) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val hasPerm = StorageVault.hasStoragePermission(context)
+                if (hasStoragePermission != hasPerm) {
+                    hasStoragePermission = hasPerm
+                    DocumentThumbnailLoader.invalidateCache()
+                }
+                if (hasPerm) {
+                    viewModel.autoRestoreIfDatabaseEmpty { restored ->
+                        if (restored > 0) {
+                            Toast.makeText(context, "Restored $restored documents from ScanCraft Vault!", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // System Back button navigation
     BackHandler(enabled = isSelectMode || isSearchExpanded || selectedFolder != null) {
@@ -236,6 +266,59 @@ fun HomeScreen(
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                     ) {
+                        if (!hasStoragePermission) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                colors = CardDefaults.cardColors(containerColor = colors.primaryContainer),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FolderOpen,
+                                        contentDescription = null,
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Permanent Vault & Backup Restore",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = colors.textPrimary
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Enable 'All files access' so ScanCraft can save scans to Documents/ScanCraft and restore your scans after reinstall.",
+                                            fontSize = 12.sp,
+                                            color = colors.textSecondary,
+                                            lineHeight = 16.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Button(
+                                            onClick = {
+                                                try {
+                                                    context.startActivity(StorageVault.getStoragePermissionIntent(context))
+                                                } catch (_: Exception) {
+                                                    Toast.makeText(context, "Please enable All Files Access in Settings", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                        ) {
+                                            Text("Enable Access", fontSize = 12.sp, color = Color.White)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         if (selectedFolder == null && searchQuery.isEmpty()) {
                             HomeQuickToolsGrid(
                                 onSmartScanClick = { onNavigateToCamera(-1L, "Document") },
@@ -334,6 +417,25 @@ fun HomeScreen(
                                         Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text("Start Scanning")
+                                    }
+                                }
+
+                                if (hasStoragePermission && selectedFolder == null) {
+                                    Spacer(modifier = Modifier.height(14.dp))
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.restoreFromVault { count ->
+                                                if (count > 0) {
+                                                    Toast.makeText(context, "Restored $count documents from Vault!", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, "No backup files found in Documents/ScanCraft", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.primary)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Restore Backups from Vault", fontSize = 13.sp, color = colors.primary)
                                     }
                                 }
                             }

@@ -82,11 +82,11 @@ void applyBradleySauvolaBWNative(uint32_t* pixels, int width, int height, float 
     if (!pixels || width <= 0 || height <= 0) return;
 
     int total = width * height;
-    std::vector<uint64_t> integral((width + 1) * (height + 1), 0);
+    std::vector<uint32_t> integral((width + 1) * (height + 1), 0);
 
     // Compute integral image
     for (int y = 0; y < height; ++y) {
-        uint64_t sum = 0;
+        uint32_t sum = 0;
         for (int x = 0; x < width; ++x) {
             uint32_t p = pixels[y * width + x];
             uint8_t lum = static_cast<uint8_t>((((p >> 16) & 0xff) * 77 + ((p >> 8) & 0xff) * 150 + (p & 0xff) * 29) >> 8);
@@ -107,7 +107,7 @@ void applyBradleySauvolaBWNative(uint32_t* pixels, int width, int height, float 
             int x2 = std::min(width - 1, x + s2);
 
             int count = (x2 - x1 + 1) * (y2 - y1 + 1);
-            uint64_t sum = integral[(y2 + 1) * (width + 1) + (x2 + 1)]
+            uint32_t sum = integral[(y2 + 1) * (width + 1) + (x2 + 1)]
                          - integral[y1 * (width + 1) + (x2 + 1)]
                          - integral[(y2 + 1) * (width + 1) + x1]
                          + integral[y1 * (width + 1) + x1];

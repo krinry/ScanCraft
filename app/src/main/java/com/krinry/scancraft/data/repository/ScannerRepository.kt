@@ -11,6 +11,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.krinry.scancraft.cv.BookSpineDetector
 import com.krinry.scancraft.cv.CollageGenerator
@@ -138,6 +140,8 @@ class ScannerRepository(
     suspend fun renameFolder(folderId: Long, newName: String) = withContext(Dispatchers.IO) {
         val folder = folderDao.getFolderById(folderId) ?: return@withContext
         folderDao.updateFolder(folder.copy(name = newName.trim()))
+        val docs = documentDao.getDocumentsListInFolder(folderId)
+        docs.forEach { syncDocumentMetadata(it.id) }
     }
 
     suspend fun deleteFolder(folder: Folder) = withContext(Dispatchers.IO) {
@@ -151,6 +155,7 @@ class ScannerRepository(
 
     suspend fun moveDocumentToFolder(docId: Long, folderId: Long) = withContext(Dispatchers.IO) {
         documentDao.updateDocumentFolder(docId, folderId)
+        syncDocumentMetadata(docId)
     }
 
     suspend fun copyDocumentToFolder(docId: Long, targetFolderId: Long): Long = withContext(Dispatchers.IO) {
@@ -158,8 +163,8 @@ class ScannerRepository(
             ?: throw IllegalArgumentException("Document with id $docId not found")
         val origPages = pageDao.getPagesListForDocument(docId)
 
-        val scansDir = File(context.filesDir, "scans").apply { if (!exists()) mkdirs() }
-        val thumbsDir = File(context.filesDir, "thumbs").apply { if (!exists()) mkdirs() }
+        val scansDir = StorageVault.getScansDirectory(context)
+        val thumbsDir = StorageVault.getThumbsDirectory(context)
 
         val now = System.currentTimeMillis()
         val newDoc = Document(
@@ -223,6 +228,7 @@ class ScannerRepository(
             if (newPages.isNotEmpty()) {
                 pageDao.insertPages(newPages)
             }
+            syncDocumentMetadata(newDocId)
             newDocId
         } catch (e: Exception) {
             copiedFiles.forEach { it.delete() }
@@ -233,6 +239,7 @@ class ScannerRepository(
 
     suspend fun batchMoveToFolder(docIds: List<Long>, folderId: Long) = withContext(Dispatchers.IO) {
         documentDao.batchUpdateFolder(docIds, folderId)
+        docIds.forEach { syncDocumentMetadata(it) }
     }
 
     suspend fun batchCopyDocumentsToFolder(docIds: List<Long>, targetFolderId: Long): List<Long> = withContext(Dispatchers.IO) {
@@ -259,8 +266,8 @@ class ScannerRepository(
         )
         val mergedDocId = documentDao.insertDocument(mergedDoc)
 
-        val scansDir = File(context.filesDir, "scans").apply { if (!exists()) mkdirs() }
-        val thumbsDir = File(context.filesDir, "thumbs").apply { if (!exists()) mkdirs() }
+        val scansDir = StorageVault.getScansDirectory(context)
+        val thumbsDir = StorageVault.getThumbsDirectory(context)
 
         var pageIndexCounter = 0
         val newPages = mutableListOf<Page>()
@@ -319,6 +326,7 @@ class ScannerRepository(
             batchDeleteDocuments(docIds)
         }
 
+        syncDocumentMetadata(mergedDocId)
         mergedDocId
     }
 
@@ -332,6 +340,9 @@ class ScannerRepository(
             }
         }
         documentDao.batchDeleteDocuments(docIds)
+        for (id in docIds) {
+            removeDocumentMetadata(id)
+        }
     }
 
     // --- Page Operations ---
@@ -348,11 +359,14 @@ class ScannerRepository(
             }
             ?: ("New Doc " + SimpleDateFormat("MM-dd-yyyy HH.mm", Locale.getDefault()).format(Date()))
         val doc = Document(title = defaultTitle, folderId = folderId)
-        documentDao.insertDocument(doc)
+        val docId = documentDao.insertDocument(doc)
+        syncDocumentMetadata(docId)
+        docId
     }
 
     suspend fun renameDocument(docId: Long, title: String) = withContext(Dispatchers.IO) {
         documentDao.updateDocumentTitle(docId, title)
+        syncDocumentMetadata(docId)
     }
 
     suspend fun importPdfDocument(uri: Uri, folderId: Long = -1L): Long = withContext(Dispatchers.IO) {
@@ -403,8 +417,8 @@ class ScannerRepository(
         enhanceModeId: Int,
         fileNamePrefix: String? = null
     ): Page = withContext(Dispatchers.IO) {
-        val scansDir = File(context.filesDir, "scans").apply { if (!exists()) mkdirs() }
-        val thumbsDir = File(context.filesDir, "thumbs").apply { if (!exists()) mkdirs() }
+        val scansDir = StorageVault.getScansDirectory(context)
+        val thumbsDir = StorageVault.getThumbsDirectory(context)
 
         val timestamp = System.currentTimeMillis()
         val prefix = if (!fileNamePrefix.isNullOrBlank()) {
@@ -454,26 +468,34 @@ class ScannerRepository(
 
         val pageId = pageDao.insertPage(page)
         documentDao.updatePageCount(documentId, existingPages.size + 1)
+        syncDocumentMetadata(documentId)
 
         page.copy(id = pageId)
     }
 
     suspend fun updatePage(page: Page) = withContext(Dispatchers.IO) {
         pageDao.updatePage(page)
+        syncDocumentMetadata(page.documentId)
     }
 
     suspend fun updatePageAnnotations(pageId: Long, annotationsJson: String) = withContext(Dispatchers.IO) {
         pageDao.updatePageAnnotations(pageId, annotationsJson)
+        val p = pageDao.getPageById(pageId)
+        if (p != null) {
+            syncDocumentMetadata(p.documentId)
+        }
     }
 
     suspend fun updateDocument(document: Document) = withContext(Dispatchers.IO) {
         documentDao.updateDocument(document)
+        syncDocumentMetadata(document.id)
     }
 
     suspend fun updateDocumentTitle(docId: Long, title: String) = withContext(Dispatchers.IO) {
         val doc = documentDao.getDocumentById(docId)
         if (doc != null) {
             documentDao.updateDocument(doc.copy(title = title, modifiedTime = System.currentTimeMillis()))
+            syncDocumentMetadata(docId)
         }
     }
 
@@ -521,6 +543,7 @@ class ScannerRepository(
         val doc = documentDao.getDocumentById(page.documentId)
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
+            syncDocumentMetadata(page.documentId)
         }
     }
 
@@ -561,6 +584,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(page.documentId)
         updatedPage
     }
 
@@ -609,6 +633,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(page.documentId)
         updatedPage
     }
 
@@ -648,6 +673,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(page.documentId)
         updatedPage
     }
 
@@ -819,6 +845,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(documentId)
     }
 
     suspend fun stitchIdCardPages(
@@ -967,6 +994,7 @@ class ScannerRepository(
             File(p.thumbnailPath).delete()
         }
         documentDao.deleteDocument(document)
+        removeDocumentMetadata(document.id)
     }
 
     suspend fun deletePage(page: Page) = withContext(Dispatchers.IO) {
@@ -986,6 +1014,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(page.documentId)
     }
 
     suspend fun batchDeletePages(pages: List<Page>) = withContext(Dispatchers.IO) {
@@ -1009,6 +1038,7 @@ class ScannerRepository(
         if (doc != null) {
             documentDao.updateDocument(doc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(docId)
     }
 
     suspend fun movePagesToDocument(pages: List<Page>, targetDocId: Long) = withContext(Dispatchers.IO) {
@@ -1044,54 +1074,107 @@ class ScannerRepository(
         if (targetDoc != null) {
             documentDao.updateDocument(targetDoc.copy(modifiedTime = System.currentTimeMillis()))
         }
+        syncDocumentMetadata(sourceDocId)
+        syncDocumentMetadata(targetDocId)
     }
 
     suspend fun copyPagesToDocument(pages: List<Page>, targetDocId: Long): List<Page> = withContext(Dispatchers.IO) {
         if (pages.isEmpty()) return@withContext emptyList()
-        val scansDir = File(context.filesDir, "scans").apply { if (!exists()) mkdirs() }
-        val thumbsDir = File(context.filesDir, "thumbs").apply { if (!exists()) mkdirs() }
+        val scansDir = StorageVault.getScansDirectory(context)
+        val thumbsDir = StorageVault.getThumbsDirectory(context)
         val existingTargetPages = pageDao.getPagesListForDocument(targetDocId)
         val copiedPages = mutableListOf<Page>()
+        val copiedFiles = mutableListOf<File>()
 
-        pages.forEachIndexed { index, p ->
-            val timestamp = System.currentTimeMillis() + index
-            val newProc = File(scansDir, "page_${targetDocId}_${timestamp}.jpg")
-            val newOrig = File(scansDir, "orig_${targetDocId}_${timestamp}.jpg")
-            val newThumb = File(thumbsDir, "thumb_${targetDocId}_${timestamp}.jpg")
+        try {
+            pages.forEachIndexed { index, p ->
+                val timestamp = System.currentTimeMillis() + index
+                val newProc = File(scansDir, "page_${targetDocId}_${timestamp}.jpg")
+                val newOrig = File(scansDir, "orig_${targetDocId}_${timestamp}.jpg")
+                val newThumb = File(thumbsDir, "thumb_${targetDocId}_${timestamp}.jpg")
 
-            val procFile = File(p.processedImagePath)
-            if (procFile.exists()) procFile.copyTo(newProc, overwrite = true)
+                val procFile = File(p.processedImagePath)
+                if (procFile.exists()) {
+                    procFile.copyTo(newProc, overwrite = true)
+                    copiedFiles.add(newProc)
+                }
 
-            val origFile = File(p.originalImagePath)
-            if (origFile.exists()) origFile.copyTo(newOrig, overwrite = true)
+                val origFile = File(p.originalImagePath)
+                if (origFile.exists()) {
+                    origFile.copyTo(newOrig, overwrite = true)
+                    copiedFiles.add(newOrig)
+                }
 
-            val thumbFile = File(p.thumbnailPath)
-            if (thumbFile.exists()) thumbFile.copyTo(newThumb, overwrite = true)
+                val thumbFile = File(p.thumbnailPath)
+                if (thumbFile.exists()) {
+                    thumbFile.copyTo(newThumb, overwrite = true)
+                    copiedFiles.add(newThumb)
+                }
 
-            val newPage = Page(
-                documentId = targetDocId,
-                pageIndex = existingTargetPages.size + index,
-                processedImagePath = newProc.absolutePath,
-                originalImagePath = newOrig.absolutePath,
-                thumbnailPath = newThumb.absolutePath,
-                cropBorderJson = p.cropBorderJson,
-                enhanceMode = p.enhanceMode
-            )
-            val newId = pageDao.insertPage(newPage)
-            copiedPages.add(newPage.copy(id = newId))
+                val newPage = Page(
+                    documentId = targetDocId,
+                    pageIndex = existingTargetPages.size + index,
+                    processedImagePath = if (newProc.exists()) newProc.absolutePath else p.processedImagePath,
+                    originalImagePath = if (newOrig.exists()) newOrig.absolutePath else p.originalImagePath,
+                    thumbnailPath = if (newThumb.exists()) newThumb.absolutePath else p.thumbnailPath,
+                    cropBorderJson = p.cropBorderJson,
+                    enhanceMode = p.enhanceMode
+                )
+                val newId = pageDao.insertPage(newPage)
+                copiedPages.add(newPage.copy(id = newId))
+            }
+
+            documentDao.updatePageCount(targetDocId, existingTargetPages.size + pages.size)
+            val targetDoc = documentDao.getDocumentById(targetDocId)
+            if (targetDoc != null) {
+                documentDao.updateDocument(targetDoc.copy(modifiedTime = System.currentTimeMillis()))
+            }
+            syncDocumentMetadata(targetDocId)
+            copiedPages
+        } catch (e: Exception) {
+            copiedFiles.forEach { it.delete() }
+            copiedPages.forEach { runCatching { pageDao.deletePage(it) } }
+            throw e
         }
-
-        documentDao.updatePageCount(targetDocId, existingTargetPages.size + pages.size)
-        val targetDoc = documentDao.getDocumentById(targetDocId)
-        if (targetDoc != null) {
-            documentDao.updateDocument(targetDoc.copy(modifiedTime = System.currentTimeMillis()))
-        }
-        copiedPages
     }
 
     suspend fun copyPagesWithinDocument(pages: List<Page>): List<Page> = withContext(Dispatchers.IO) {
         if (pages.isEmpty()) return@withContext emptyList()
         val docId = pages.first().documentId
         copyPagesToDocument(pages, docId)
+    }
+
+    private val documentSyncLocks = java.util.concurrent.ConcurrentHashMap<Long, Mutex>()
+
+    /**
+     * Serializes snapshot capture and disk synchronization per document to guarantee
+     * older asynchronous reads never overwrite newer mutations.
+     */
+    private suspend fun syncDocumentMetadata(docId: Long) {
+        val lock = documentSyncLocks.computeIfAbsent(docId) { Mutex() }
+        lock.withLock {
+            try {
+                val doc = documentDao.getDocumentById(docId) ?: return@withLock
+                val pages = pageDao.getPagesListForDocument(docId)
+                val folder = if (doc.folderId > 0) folderDao.getFolderById(doc.folderId) else null
+                StorageVault.saveDocumentMetadata(context, doc, pages, folder?.name)
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Removes document metadata from the storage vault under the per-document lock.
+     */
+    private suspend fun removeDocumentMetadata(docId: Long) {
+        val lock = documentSyncLocks.computeIfAbsent(docId) { Mutex() }
+        lock.withLock {
+            try {
+                StorageVault.deleteDocumentMetadata(context, docId)
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
+            } catch (_: Exception) {}
+        }
     }
 }
