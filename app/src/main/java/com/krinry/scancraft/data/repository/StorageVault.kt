@@ -133,8 +133,11 @@ object StorageVault {
         return File(root, "meta").apply { if (!exists()) mkdirs() }
     }
 
+    private val writeLocks = java.util.concurrent.ConcurrentHashMap<Long, Any>()
+
     /**
-     * Writes document and page metadata to JSON so it survives uninstalls and can be re-indexed.
+     * Writes document and page metadata to JSON atomically so it survives uninstalls and can be re-indexed.
+     * Uses atomic file replacement (temp file + rename) to guarantee readers never see partial content.
      */
     fun saveDocumentMetadata(
         context: Context,
@@ -142,54 +145,67 @@ object StorageVault {
         pages: List<Page>,
         folderName: String? = null
     ) {
-        try {
-            val metaDir = getMetaDirectory(context)
-            val metaFile = File(metaDir, "doc_${document.id}_meta.json")
+        val lock = writeLocks.computeIfAbsent(document.id) { Any() }
+        synchronized(lock) {
+            try {
+                val metaDir = getMetaDirectory(context)
+                val metaFile = File(metaDir, "doc_${document.id}_meta.json")
+                val tempFile = File(metaDir, "doc_${document.id}_meta.json.tmp_${System.nanoTime()}")
 
-            val json = JSONObject().apply {
-                put("version", 1)
-                put("documentId", document.id)
-                put("title", document.title)
-                put("createdTime", document.createdTime)
-                put("modifiedTime", document.modifiedTime)
-                put("pageCount", pages.size)
-                put("tags", document.tags)
-                put("folderName", folderName ?: "")
+                val json = JSONObject().apply {
+                    put("version", 1)
+                    put("documentId", document.id)
+                    put("title", document.title)
+                    put("createdTime", document.createdTime)
+                    put("modifiedTime", document.modifiedTime)
+                    put("pageCount", pages.size)
+                    put("tags", document.tags)
+                    put("folderName", folderName ?: "")
 
-                val pagesArray = JSONArray()
-                for (p in pages) {
-                    val pJson = JSONObject().apply {
-                        put("pageIndex", p.pageIndex)
-                        put("processedFileName", File(p.processedImagePath).name)
-                        put("originalFileName", File(p.originalImagePath).name)
-                        put("thumbnailFileName", File(p.thumbnailPath).name)
-                        put("cropBorderJson", p.cropBorderJson)
-                        put("enhanceMode", p.enhanceMode)
-                        put("rotationDegrees", p.rotationDegrees)
-                        put("brightness", p.brightness)
-                        put("contrast", p.contrast)
-                        put("ocrText", p.ocrText)
-                        put("watermarkText", p.watermarkText)
-                        put("annotationsJson", p.annotationsJson)
+                    val pagesArray = JSONArray()
+                    for (p in pages) {
+                        val pJson = JSONObject().apply {
+                            put("pageIndex", p.pageIndex)
+                            put("processedFileName", File(p.processedImagePath).name)
+                            put("originalFileName", File(p.originalImagePath).name)
+                            put("thumbnailFileName", File(p.thumbnailPath).name)
+                            put("cropBorderJson", p.cropBorderJson)
+                            put("enhanceMode", p.enhanceMode)
+                            put("rotationDegrees", p.rotationDegrees)
+                            put("brightness", p.brightness)
+                            put("contrast", p.contrast)
+                            put("ocrText", p.ocrText)
+                            put("watermarkText", p.watermarkText)
+                            put("annotationsJson", p.annotationsJson)
+                        }
+                        pagesArray.put(pJson)
                     }
-                    pagesArray.put(pJson)
+                    put("pages", pagesArray)
                 }
-                put("pages", pagesArray)
-            }
 
-            FileOutputStream(metaFile).use { out ->
-                out.write(json.toString(2).toByteArray(Charsets.UTF_8))
-            }
-        } catch (_: Exception) {}
+                FileOutputStream(tempFile).use { out ->
+                    out.write(json.toString(2).toByteArray(Charsets.UTF_8))
+                    out.flush()
+                }
+
+                if (!tempFile.renameTo(metaFile)) {
+                    tempFile.copyTo(metaFile, overwrite = true)
+                    tempFile.delete()
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     /**
      * Deletes the metadata backup when a document is deleted.
      */
     fun deleteDocumentMetadata(context: Context, documentId: Long) {
-        try {
-            val metaDir = getMetaDirectory(context)
-            File(metaDir, "doc_${documentId}_meta.json").delete()
-        } catch (_: Exception) {}
+        val lock = writeLocks.computeIfAbsent(documentId) { Any() }
+        synchronized(lock) {
+            try {
+                val metaDir = getMetaDirectory(context)
+                File(metaDir, "doc_${documentId}_meta.json").delete()
+            } catch (_: Exception) {}
+        }
     }
 }

@@ -94,8 +94,17 @@ object DocumentRecoveryManager {
                         }
                     }
 
+                    // Prevent ID collision: if a document already exists with originalDocId,
+                    // assign a new non-conflicting ID (id = 0L) so Room auto-generates a new ID
+                    // without overwriting existing records or cascade-deleting existing pages.
+                    val targetId = if (originalDocId > 0L && database.documentDao().getDocumentById(originalDocId) == null) {
+                        originalDocId
+                    } else {
+                        0L
+                    }
+
                     val doc = Document(
-                        id = if (originalDocId > 0L) originalDocId else 0L,
+                        id = targetId,
                         title = title,
                         createdTime = createdTime,
                         modifiedTime = modifiedTime,

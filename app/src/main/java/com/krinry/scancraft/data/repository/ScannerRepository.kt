@@ -11,6 +11,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.krinry.scancraft.cv.BookSpineDetector
 import com.krinry.scancraft.cv.CollageGenerator
@@ -1139,15 +1141,24 @@ class ScannerRepository(
         copyPagesToDocument(pages, docId)
     }
 
+    private val documentSyncLocks = java.util.concurrent.ConcurrentHashMap<Long, Mutex>()
+
+    /**
+     * Serializes snapshot capture and disk synchronization per document to guarantee
+     * older asynchronous reads never overwrite newer mutations.
+     */
     private suspend fun syncDocumentMetadata(docId: Long) {
-        try {
-            val doc = documentDao.getDocumentById(docId) ?: return
-            val pages = pageDao.getPagesListForDocument(docId)
-            val folder = if (doc.folderId > 0) folderDao.getFolderById(doc.folderId) else null
-            StorageVault.saveDocumentMetadata(context, doc, pages, folder?.name)
-        } catch (ce: kotlinx.coroutines.CancellationException) {
-            throw ce
-        } catch (_: Exception) {}
+        val lock = documentSyncLocks.computeIfAbsent(docId) { Mutex() }
+        lock.withLock {
+            try {
+                val doc = documentDao.getDocumentById(docId) ?: return@withLock
+                val pages = pageDao.getPagesListForDocument(docId)
+                val folder = if (doc.folderId > 0) folderDao.getFolderById(doc.folderId) else null
+                StorageVault.saveDocumentMetadata(context, doc, pages, folder?.name)
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
+            } catch (_: Exception) {}
+        }
     }
 
     private fun removeDocumentMetadata(docId: Long) {

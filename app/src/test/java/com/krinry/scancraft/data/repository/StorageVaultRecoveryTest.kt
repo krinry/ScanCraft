@@ -58,6 +58,7 @@ class StorageVaultRecoveryTest {
         every { database.documentDao() } returns documentDao
         every { database.pageDao() } returns pageDao
         every { database.folderDao() } returns folderDao
+        coEvery { documentDao.getDocumentById(any()) } returns null
 
         DocumentThumbnailLoader.invalidateCache()
     }
@@ -339,4 +340,24 @@ class StorageVaultRecoveryTest {
         assertEquals("second.jpg", saved.getJSONObject(0).getString("thumbnailFileName"))
     }
 
+    @Test
+    fun recoveryResolvesIdCollisionWithoutReplacingExistingDocument() = runTest {
+        val doc = Document(id = 88L, title = "Backed Up Colliding Doc")
+        StorageVault.saveDocumentMetadata(context, doc, emptyList())
+
+        // Database already contains an existing document with id 88L
+        val existingDoc = Document(id = 88L, title = "Already Existing Doc")
+        coEvery { documentDao.getDocumentById(88L) } returns existingDoc
+
+        val insertedDocSlot = slot<Document>()
+        coEvery { documentDao.insertDocument(capture(insertedDocSlot)) } returns 200L
+
+        val restored = DocumentRecoveryManager.scanAndRestoreFromVault(context, database)
+        assertEquals(1, restored)
+
+        // Must assign id = 0L to let Room generate a non-conflicting ID, rather than overwriting id = 88L
+        assertTrue(insertedDocSlot.isCaptured)
+        assertEquals(0L, insertedDocSlot.captured.id)
+        assertEquals("Backed Up Colliding Doc", insertedDocSlot.captured.title)
+    }
 }
