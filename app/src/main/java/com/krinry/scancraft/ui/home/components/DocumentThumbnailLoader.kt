@@ -33,7 +33,7 @@ object DocumentThumbnailLoader {
      */
     fun findThumbnailFile(context: Context, docId: Long): File? {
         val cached = thumbnailCache.get(docId)
-        if (cached != null && cached.exists() && cached.length() > 0) {
+        if (cached != null && cached.exists() && cached.canRead() && cached.length() > 0) {
             return cached
         }
 
@@ -44,16 +44,17 @@ object DocumentThumbnailLoader {
         )
 
         for (thumbsDir in candidateThumbDirs) {
-            if (thumbsDir.exists()) {
+            if (thumbsDir.exists() && thumbsDir.canRead()) {
                 val thumbFiles = thumbsDir.listFiles()
                 if (!thumbFiles.isNullOrEmpty()) {
                     val match = thumbFiles.firstOrNull { file ->
                         val name = file.name
-                        name.startsWith("thumb_${docId}_") ||
+                        (name.startsWith("thumb_${docId}_") ||
                         name.startsWith("thumb_page_${docId}_") ||
-                        name.contains("_page_${docId}_")
+                        name.contains("_page_${docId}_")) &&
+                        file.exists() && file.canRead() && file.length() > 0
                     }
-                    if (match != null && match.exists() && match.length() > 0) {
+                    if (match != null) {
                         thumbnailCache.put(docId, match)
                         return match
                     }
@@ -68,7 +69,7 @@ object DocumentThumbnailLoader {
         )
 
         for (scansDir in candidateScanDirs) {
-            if (scansDir.exists()) {
+            if (scansDir.exists() && scansDir.canRead()) {
                 val scanFiles = scansDir.listFiles()
                 if (!scanFiles.isNullOrEmpty()) {
                     val scanMatch = scanFiles.firstOrNull { file ->
@@ -77,9 +78,9 @@ object DocumentThumbnailLoader {
                             name.startsWith("page_${docId}_") ||
                             name.startsWith("${docId}_") ||
                             name.contains("_page_${docId}_")
-                        )
+                        ) && file.exists() && file.canRead() && file.length() > 0
                     }
-                    if (scanMatch != null && scanMatch.exists() && scanMatch.length() > 0) {
+                    if (scanMatch != null) {
                         thumbnailCache.put(docId, scanMatch)
                         return scanMatch
                     }

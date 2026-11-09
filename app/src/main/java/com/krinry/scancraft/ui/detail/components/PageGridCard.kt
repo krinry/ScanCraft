@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -86,13 +87,43 @@ fun PageGridCard(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             val pageFile = File(page.processedImagePath)
-            if (pageFile.exists()) {
+            val thumbFile = if (page.thumbnailPath.isNotBlank()) File(page.thumbnailPath) else null
+            val readableImage = when {
+                pageFile.canRead() -> pageFile
+                thumbFile != null && thumbFile.canRead() -> thumbFile
+                else -> null
+            }
+
+            if (readableImage != null) {
                 AsyncImage(
-                    model = pageFile,
+                    model = readableImage,
                     contentDescription = "Page ${page.pageIndex + 1}",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = "Permission Required",
+                            tint = colors.primary,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Permission Required",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.textSecondary
+                        )
+                    }
+                }
             }
 
             // Selection mode translucent overlay

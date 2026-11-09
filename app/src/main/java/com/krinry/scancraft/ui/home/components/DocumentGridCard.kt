@@ -76,7 +76,7 @@ fun ScannerDocumentGridCard(
                     DocumentThumbnailLoader.findThumbnailFile(context, document.id)
                 }
 
-                if (thumbFile != null && thumbFile.exists()) {
+                if (thumbFile != null && thumbFile.canRead()) {
                     AsyncImage(
                         model = thumbFile,
                         contentDescription = null,

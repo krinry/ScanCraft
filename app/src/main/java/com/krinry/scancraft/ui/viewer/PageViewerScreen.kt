@@ -19,7 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.outlined.ZoomIn
+import com.krinry.scancraft.data.repository.StorageVault
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -309,23 +311,69 @@ fun PageViewerScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    key(p.id, imageReloadKey) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(File(p.processedImagePath))
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Page ${p.pageIndex + 1}",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer(
-                                    scaleX = if (isActivePage) scale else 1f,
-                                    scaleY = if (isActivePage) scale else 1f,
-                                    translationX = if (isActivePage) offset.x else 0f,
-                                    translationY = if (isActivePage) offset.y else 0f
-                                )
-                        )
+                    val pageFile = File(p.processedImagePath)
+                    val thumbFile = if (p.thumbnailPath.isNotBlank()) File(p.thumbnailPath) else null
+                    val readableFile = when {
+                        pageFile.canRead() -> pageFile
+                        thumbFile != null && thumbFile.canRead() -> thumbFile
+                        else -> null
+                    }
+
+                    if (readableFile != null) {
+                        key(p.id, imageReloadKey) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(readableFile)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Page ${p.pageIndex + 1}",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer(
+                                        scaleX = if (isActivePage) scale else 1f,
+                                        scaleY = if (isActivePage) scale else 1f,
+                                        translationX = if (isActivePage) offset.x else 0f,
+                                        translationY = if (isActivePage) offset.y else 0f
+                                    )
+                            )
+                        }
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = ScannerGreen,
+                                modifier = Modifier.size(54.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "All Files Access Required",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Enable storage permission in Settings to view this high-resolution document.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFFCCCCCC),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    context.startActivity(StorageVault.getStoragePermissionIntent(context))
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = ScannerGreen)
+                            ) {
+                                Text("Enable Access", color = Color.White)
+                            }
+                        }
                     }
                 }
             }

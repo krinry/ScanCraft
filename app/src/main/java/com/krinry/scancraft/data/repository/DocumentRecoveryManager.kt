@@ -67,20 +67,6 @@ object DocumentRecoveryManager {
                 dir.listFiles { file -> file.isFile && file.name.endsWith("_meta.json") }?.toList().orEmpty()
             }.distinctBy { it.name }
 
-            // Deduplicate any pre-existing duplicate documents in database (same title & createdTime)
-            try {
-                val currentDocs = database.documentDao().getAllDocumentsList()
-                val seenKeys = mutableSetOf<String>()
-                for (d in currentDocs) {
-                    val key = "${d.title}_${d.createdTime}"
-                    if (!seenKeys.add(key)) {
-                        val pList = database.pageDao().getPagesListForDocument(d.id)
-                        pList.forEach { database.pageDao().deletePage(it) }
-                        database.documentDao().deleteDocument(d)
-                    }
-                }
-            } catch (_: Exception) {}
-
             if (metaFiles.isEmpty()) return@withLock 0
 
             val candidateScanDirs = listOfNotNull(
@@ -165,16 +151,32 @@ object DocumentRecoveryManager {
                                 val origName = safeFileName(pJson.optString("originalFileName", ""))
                                 val thumbName = safeFileName(pJson.optString("thumbnailFileName", ""))
 
-                                val procFile = procName?.let { name -> candidateScanDirs.map { File(it, name) }.firstOrNull { it.exists() } }
-                                val origFile = origName?.let { name -> candidateScanDirs.map { File(it, name) }.firstOrNull { it.exists() } }
-                                val thumbFile = thumbName?.let { name -> candidateThumbDirs.map { File(it, name) }.firstOrNull { it.exists() } }
+                                val procFile = procName?.let { name -> candidateScanDirs.map { File(it, name) }.firstOrNull { it.exists() && it.canRead() } }
+                                val origFile = origName?.let { name -> candidateScanDirs.map { File(it, name) }.firstOrNull { it.exists() && it.canRead() } }
+                                val thumbFile = thumbName?.let { name -> candidateThumbDirs.map { File(it, name) }.firstOrNull { it.exists() && it.canRead() } }
+
+                                // Mirror thumbnail into app-private storage so it remains visible even if storage permission is revoked
+                                val effectiveThumbPath = if (thumbFile != null && thumbFile.canRead()) {
+                                    try {
+                                        val privateThumbsDir = File(context.filesDir, "thumbs").apply { if (!exists()) mkdirs() }
+                                        val privateThumb = File(privateThumbsDir, thumbFile.name)
+                                        if (!privateThumb.exists() || privateThumb.length() == 0L) {
+                                            thumbFile.copyTo(privateThumb, overwrite = true)
+                                        }
+                                        privateThumb.absolutePath
+                                    } catch (_: Exception) {
+                                        thumbFile.absolutePath
+                                    }
+                                } else {
+                                    thumbFile?.absolutePath ?: ""
+                                }
 
                                 val page = Page(
                                     documentId = newDocId,
                                     pageIndex = pageIndex,
                                     processedImagePath = procFile?.absolutePath ?: "",
                                     originalImagePath = origFile?.absolutePath ?: "",
-                                    thumbnailPath = thumbFile?.absolutePath ?: "",
+                                    thumbnailPath = effectiveThumbPath,
                                     cropBorderJson = pJson.optString("cropBorderJson", ""),
                                     enhanceMode = pJson.optInt("enhanceMode", 1),
                                     rotationDegrees = pJson.optInt("rotationDegrees", 0),
@@ -196,5 +198,28 @@ object DocumentRecoveryManager {
             }
             restoredCount
         }
+    }
+
+    /**
+     * Ensures all existing document thumbnails are cached into app-private storage
+     * so they remain readable even if external storage permissions are revoked.
+     */
+    suspend fun syncThumbnailsToPrivateCache(context: Context, database: AppDatabase) = withContext(Dispatchers.IO) {
+        try {
+            val docs = database.documentDao().getAllDocumentsList()
+            val privateThumbsDir = File(context.filesDir, "thumbs").apply { if (!exists()) mkdirs() }
+            for (doc in docs) {
+                val pages = database.pageDao().getPagesListForDocument(doc.id)
+                for (p in pages) {
+                    val tf = if (p.thumbnailPath.isNotBlank()) File(p.thumbnailPath) else null
+                    if (tf != null && tf.canRead() && tf.length() > 0) {
+                        val dest = File(privateThumbsDir, tf.name)
+                        if (!dest.exists() || dest.length() == 0L) {
+                            try { tf.copyTo(dest, overwrite = true) } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
     }
 }

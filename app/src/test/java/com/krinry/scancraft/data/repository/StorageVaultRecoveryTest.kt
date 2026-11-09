@@ -393,19 +393,4 @@ class StorageVaultRecoveryTest {
         assertEquals(0, restored)
         coVerify(exactly = 0) { documentDao.insertDocument(any()) }
     }
-
-    @Test
-    fun recoveryCleansUpPreExistingDuplicatesInDatabase() = runTest {
-        val doc1 = Document(id = 1L, title = "Invoice", createdTime = 9999L)
-        val doc2 = Document(id = 2L, title = "Invoice", createdTime = 9999L) // duplicate!
-
-        coEvery { documentDao.getAllDocumentsList() } returns listOf(doc1, doc2)
-        coEvery { pageDao.getPagesListForDocument(2L) } returns emptyList()
-
-        DocumentRecoveryManager.scanAndRestoreFromVault(context, database)
-
-        // Must delete the duplicate doc2
-        coVerify(exactly = 1) { documentDao.deleteDocument(doc2) }
-        coVerify(exactly = 0) { documentDao.deleteDocument(doc1) }
-    }
 }

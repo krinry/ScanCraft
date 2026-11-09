@@ -90,9 +90,12 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val hasPerm = StorageVault.hasStoragePermission(context)
-                hasStoragePermission = hasPerm
-                if (hasPerm && documents.isEmpty()) {
-                    viewModel.restoreFromVault { restored ->
+                if (hasStoragePermission != hasPerm) {
+                    hasStoragePermission = hasPerm
+                    DocumentThumbnailLoader.invalidateCache()
+                }
+                if (hasPerm) {
+                    viewModel.autoRestoreIfDatabaseEmpty { restored ->
                         if (restored > 0) {
                             Toast.makeText(context, "Restored $restored documents from ScanCraft Vault!", Toast.LENGTH_LONG).show()
                         }
