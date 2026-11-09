@@ -492,7 +492,8 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun addDocumentItemFromFile(
         filePath: String,
-        onSuccess: (BatchCaptureItem) -> Unit = {}
+        onSuccess: (BatchCaptureItem) -> Unit = {},
+        onComplete: (() -> Unit)? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -542,6 +543,10 @@ class CameraViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke()
+                }
             }
         }
     }

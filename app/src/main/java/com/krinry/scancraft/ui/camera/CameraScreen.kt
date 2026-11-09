@@ -1526,32 +1526,61 @@ fun CameraScreen(
                 docId = docId,
                 onBatchCropConfirmed = { resultsMap ->
                     val path = pendingCropImagePath
+                    val hasPendingInResults = path != null && resultsMap.containsKey(0L)
                     resultsMap.forEach { (id, res) ->
                         if (id == 0L && path != null) {
-                            viewModel.addDocumentItemFromFile(path) { newItem ->
-                                viewModel.updateBatchItemCrop(newItem.id, res.quad, res.rotationDegrees)
-                            }
+                            viewModel.addDocumentItemFromFile(
+                                filePath = path,
+                                onSuccess = { newItem ->
+                                    viewModel.updateBatchItemCrop(newItem.id, res.quad, res.rotationDegrees)
+                                },
+                                onComplete = {
+                                    pendingCropImagePath = null
+                                }
+                            )
                         } else {
                             viewModel.updateBatchItemCrop(id, res.quad, res.rotationDegrees)
                         }
                     }
-                    if (path != null && !resultsMap.containsKey(0L)) {
-                        viewModel.addDocumentItemFromFile(path)
+                    if (path != null && !hasPendingInResults) {
+                        viewModel.addDocumentItemFromFile(
+                            filePath = path,
+                            onComplete = {
+                                pendingCropImagePath = null
+                            }
+                        )
+                    } else if (!hasPendingInResults) {
+                        pendingCropImagePath = null
                     }
-                    pendingCropImagePath = null
                 },
                 onCropConfirmed = { quad ->
-                    viewModel.addDocumentItemFromFile(pendingCropImagePath!!) { newItem ->
-                        viewModel.updateBatchItemCrop(newItem.id, quad)
+                    val path = pendingCropImagePath
+                    if (path != null) {
+                        viewModel.addDocumentItemFromFile(
+                            filePath = path,
+                            onSuccess = { newItem ->
+                                viewModel.updateBatchItemCrop(newItem.id, quad)
+                            },
+                            onComplete = {
+                                pendingCropImagePath = null
+                            }
+                        )
+                    } else {
+                        pendingCropImagePath = null
                     }
-                    pendingCropImagePath = null
                 },
                 onClose = {
                     val path = pendingCropImagePath
                     if (path != null) {
-                        viewModel.addDocumentItemFromFile(path)
+                        viewModel.addDocumentItemFromFile(
+                            filePath = path,
+                            onComplete = {
+                                pendingCropImagePath = null
+                            }
+                        )
+                    } else {
+                        pendingCropImagePath = null
                     }
-                    pendingCropImagePath = null
                 }
             )
         }
