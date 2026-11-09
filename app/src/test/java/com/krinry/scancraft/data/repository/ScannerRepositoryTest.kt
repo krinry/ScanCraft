@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
+import org.json.JSONObject
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -46,6 +47,7 @@ class ScannerRepositoryTest {
     fun setUp() {
         context = mockk(relaxed = true)
         every { context.filesDir } returns tempFolder.root
+        every { context.getExternalFilesDir(null) } returns tempFolder.root
         documentDao = mockk(relaxed = true)
         pageDao = mockk(relaxed = true)
         folderDao = mockk(relaxed = true)
@@ -291,4 +293,72 @@ class ScannerRepositoryTest {
         assertTrue(frontY + cardH < backY)
         assertTrue(backY + cardH < a4Height)
     }
+    @Test
+    fun renamePersistsUpdatedMetadataWithPagesAndFolder() = runTest {
+        val doc = Document(id = 42L, title = "Before", folderId = 5L)
+        coEvery { documentDao.updateDocumentTitle(42L, "After", any()) } answers { Unit }
+        coEvery { documentDao.getDocumentById(42L) } returns doc.copy(title = "After")
+        coEvery { folderDao.getFolderById(5L) } returns Folder(id = 5L, name = "Work")
+        coEvery { pageDao.getPagesListForDocument(42L) } returns listOf(
+            Page(documentId = 42L, pageIndex = 0, processedImagePath = "/old/page.jpg",
+                originalImagePath = "/old/original.jpg", ocrText = "Retained OCR")
+        )
+
+        repository.renameDocument(42L, "After")
+
+        val json = JSONObject(File(StorageVault.getMetaDirectory(context), "doc_42_meta.json").readText())
+        assertEquals("After", json.getString("title"))
+        assertEquals("Work", json.getString("folderName"))
+        assertEquals("Retained OCR", json.getJSONArray("pages").getJSONObject(0).getString("ocrText"))
+        coVerify(ordering = io.mockk.Ordering.ORDERED) {
+            documentDao.updateDocumentTitle(42L, "After", any())
+            documentDao.getDocumentById(42L)
+        }
+    }
+
+    @Test
+    fun updatingPagePersistsItsNewSettingsInMetadata() = runTest {
+        val doc = Document(id = 42L, title = "Edited")
+        val page = Page(id = 3L, documentId = 42L, pageIndex = 0,
+            processedImagePath = "/old/page.jpg", originalImagePath = "/old/original.jpg",
+            rotationDegrees = 90, brightness = -15)
+        coEvery { documentDao.getDocumentById(42L) } returns doc
+        coEvery { pageDao.getPagesListForDocument(42L) } returns listOf(page)
+
+        repository.updatePage(page)
+
+        val json = JSONObject(File(StorageVault.getMetaDirectory(context), "doc_42_meta.json").readText())
+            .getJSONArray("pages").getJSONObject(0)
+        assertEquals(90, json.getInt("rotationDegrees"))
+        assertEquals(-15, json.getInt("brightness"))
+        coVerify(ordering = io.mockk.Ordering.ORDERED) {
+            pageDao.updatePage(page)
+            pageDao.getPagesListForDocument(42L)
+        }
+    }
+
+    @Test
+    fun deletingDocumentRemovesOnlyItsMetadataBackup() = runTest {
+        val doc = Document(id = 42L, title = "Delete")
+        StorageVault.saveDocumentMetadata(context, doc, emptyList())
+        StorageVault.saveDocumentMetadata(context, Document(id = 43L, title = "Keep"), emptyList())
+        coEvery { pageDao.getPagesListForDocument(42L) } returns emptyList()
+
+        repository.deleteDocument(doc)
+
+        assertFalse(File(StorageVault.getMetaDirectory(context), "doc_42_meta.json").exists())
+        assertTrue(File(StorageVault.getMetaDirectory(context), "doc_43_meta.json").exists())
+        coVerify(exactly = 1) { documentDao.deleteDocument(doc) }
+    }
+
+    @Test
+    fun metadataLookupFailureDoesNotFailSuccessfulRename() = runTest {
+        coEvery { documentDao.getDocumentById(42L) } throws IOException("Unavailable")
+
+        repository.renameDocument(42L, "Renamed")
+
+        coVerify(exactly = 1) { documentDao.updateDocumentTitle(42L, "Renamed", any()) }
+        assertFalse(File(StorageVault.getMetaDirectory(context), "doc_42_meta.json").exists())
+    }
+
 }

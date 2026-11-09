@@ -16,6 +16,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
+import org.json.JSONObject
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -157,4 +158,170 @@ class StorageVaultRecoveryTest {
         // Invalidate cache
         DocumentThumbnailLoader.invalidateCache(105L)
     }
+    @Test
+    fun populatedDatabaseDoesNotImportVaultDocuments() = runTest {
+        StorageVault.saveDocumentMetadata(context, Document(id = 9L, title = "Backup"), emptyList())
+        coEvery { documentDao.getAllDocumentsList() } returns listOf(Document(id = 1L, title = "Local"))
+
+        assertEquals(0, DocumentRecoveryManager.autoRestoreIfDatabaseEmpty(context, database))
+
+        coVerify(exactly = 0) { documentDao.insertDocument(any()) }
+        coVerify(exactly = 0) { pageDao.insertPage(any()) }
+        coVerify(exactly = 0) { folderDao.insertFolder(any()) }
+    }
+
+    @Test
+    fun emptyVaultDoesNotWriteToDatabase() = runTest {
+        assertEquals(0, DocumentRecoveryManager.scanAndRestoreFromVault(context, database))
+        coVerify(exactly = 0) { documentDao.insertDocument(any()) }
+    }
+
+    @Test
+    fun malformedMetadataDoesNotPreventValidDocumentRecovery() = runTest {
+        val meta = StorageVault.getMetaDirectory(context)
+        File(meta, "broken_meta.json").writeText("{invalid")
+        File(meta, "ignored.json").writeText("""{"title":"Ignored"}""")
+        File(meta, "directory_meta.json").mkdir()
+        StorageVault.saveDocumentMetadata(context, Document(id = 8L, title = "Valid"), emptyList())
+
+        assertEquals(1, DocumentRecoveryManager.scanAndRestoreFromVault(context, database))
+        coVerify(exactly = 1) { documentDao.insertDocument(match { it.title == "Valid" && it.pageCount == 0 }) }
+        coVerify(exactly = 0) { pageDao.insertPage(any()) }
+    }
+
+    @Test
+    fun recoveryReusesExistingFolderAndRestoresEveryPageSetting() = runTest {
+        val scans = StorageVault.getScansDirectory(context)
+        val thumbs = StorageVault.getThumbsDirectory(context)
+        val processed = File(scans, "processed.jpg").apply { writeText("processed") }
+        val original = File(scans, "original.jpg").apply { writeText("original") }
+        val thumbnail = File(thumbs, "thumbnail.jpg").apply { writeText("thumbnail") }
+        val doc = Document(id = 12L, title = "Résumé 文書", createdTime = 123L,
+            modifiedTime = 456L, tags = "tax,work")
+        val page = Page(documentId = 12L, pageIndex = 3,
+            processedImagePath = processed.path, originalImagePath = original.path,
+            thumbnailPath = thumbnail.path, cropBorderJson = "[1,2,3,4]",
+            enhanceMode = 2, rotationDegrees = 270, brightness = -20, contrast = 30,
+            ocrText = "Line 1\n文書", watermarkText = "Draft",
+            annotationsJson = """{"strokes":[]}""", createdTime = 123L)
+        StorageVault.saveDocumentMetadata(context, doc, listOf(page), "  Work  ")
+        coEvery { folderDao.getFolderByName("Work") } returns Folder(id = 7L, name = "Work")
+        coEvery { documentDao.insertDocument(any()) } returns 500L
+        val restoredPage = slot<Page>()
+        coEvery { pageDao.insertPage(capture(restoredPage)) } returns 1L
+
+        assertEquals(1, DocumentRecoveryManager.scanAndRestoreFromVault(context, database))
+
+        coVerify(exactly = 0) { folderDao.insertFolder(any()) }
+        coVerify(exactly = 1) {
+            documentDao.insertDocument(match {
+                it.id == 0L && it.title == doc.title && it.createdTime == 123L &&
+                    it.modifiedTime == 456L && it.tags == "tax,work" && it.folderId == 7L && it.pageCount == 1
+            })
+        }
+        assertEquals(page.copy(documentId = 500L), restoredPage.captured)
+    }
+
+    @Test
+    fun missingImageFilesRestoreAsEmptyPaths() = runTest {
+        val page = Page(documentId = 2L, pageIndex = 0,
+            processedImagePath = "/old/scans/missing.jpg",
+            originalImagePath = "/old/scans/missing-original.jpg",
+            thumbnailPath = "/old/thumbs/missing-thumb.jpg")
+        StorageVault.saveDocumentMetadata(context, Document(id = 2L, title = "Missing"), listOf(page))
+        val restoredPage = slot<Page>()
+        coEvery { pageDao.insertPage(capture(restoredPage)) } returns 1L
+
+        assertEquals(1, DocumentRecoveryManager.scanAndRestoreFromVault(context, database))
+
+        assertEquals("", restoredPage.captured.processedImagePath)
+        assertEquals("", restoredPage.captured.originalImagePath)
+        assertEquals("", restoredPage.captured.thumbnailPath)
+        coVerify(exactly = 0) { folderDao.insertFolder(any()) }
+    }
+
+    @Test
+    fun minimalMetadataUsesDocumentAndPageDefaults() = runTest {
+        File(StorageVault.getMetaDirectory(context), "minimal_meta.json").writeText(
+            """{"createdTime":123,"pages":[{"processedFileName":"missing","originalFileName":"missing","thumbnailFileName":"missing"}]}"""
+        )
+        val restoredPage = slot<Page>()
+        coEvery { documentDao.insertDocument(any()) } returns 77L
+        coEvery { pageDao.insertPage(capture(restoredPage)) } returns 1L
+
+        assertEquals(1, DocumentRecoveryManager.scanAndRestoreFromVault(context, database))
+
+        coVerify { documentDao.insertDocument(match {
+            it.title == "Restored Document" && it.modifiedTime == 123L && it.folderId == -1L
+        }) }
+        with(restoredPage.captured) {
+            assertEquals(77L, documentId)
+            assertEquals(0, pageIndex)
+            assertEquals(1, enhanceMode)
+            assertEquals(0, rotationDegrees)
+            assertEquals(0, brightness)
+            assertEquals(0, contrast)
+            assertEquals("", ocrText)
+        }
+    }
+
+    @Test
+    fun metadataReplacementRemovesStalePagesAndPreservesOtherDocuments() {
+        val doc = Document(id = 3L, title = "Old")
+        val page = Page(documentId = 3L, pageIndex = 0, processedImagePath = "/old/page.jpg",
+            originalImagePath = "/old/original.jpg")
+        StorageVault.saveDocumentMetadata(context, doc, listOf(page), "Work")
+        StorageVault.saveDocumentMetadata(context, Document(id = 4L, title = "Other"), emptyList())
+        StorageVault.saveDocumentMetadata(context, doc.copy(title = "Updated"), emptyList())
+
+        val meta = JSONObject(File(StorageVault.getMetaDirectory(context), "doc_3_meta.json").readText())
+        assertEquals("Updated", meta.getString("title"))
+        assertEquals(1, meta.getInt("version"))
+        assertEquals(3L, meta.getLong("documentId"))
+        assertEquals(0, meta.getInt("pageCount"))
+        assertEquals(0, meta.getJSONArray("pages").length())
+        assertEquals("", meta.getString("folderName"))
+
+        StorageVault.deleteDocumentMetadata(context, 3L)
+        StorageVault.deleteDocumentMetadata(context, 3L)
+        assertTrue(File(StorageVault.getMetaDirectory(context), "doc_4_meta.json").exists())
+    }
+
+    @Test
+    fun vaultFallsBackToInternalStorageWhenExternalStorageIsUnavailable() {
+        every { context.getExternalFilesDir(null) } returns null
+
+        assertEquals(tempFolder.root, StorageVault.getVaultRoot(context))
+        assertEquals(File(tempFolder.root, "scans"), StorageVault.getScansDirectory(context))
+        assertEquals(File(tempFolder.root, "thumbs"), StorageVault.getThumbsDirectory(context))
+        assertEquals(File(tempFolder.root, "PDFs"), StorageVault.getPdfsDirectory(context))
+        assertEquals(File(tempFolder.root, "meta"), StorageVault.getMetaDirectory(context))
+    }
+
+    @Test
+    fun vaultFallsBackToInternalStorageWhenExternalLookupThrows() {
+        every { context.getExternalFilesDir(null) } throws SecurityException("Denied")
+        assertEquals(tempFolder.root, StorageVault.getVaultRoot(context))
+    }
+
+    @Test
+    fun metadataStoresPortableFileNamesAndExplicitPageOrder() {
+        val pages = listOf(
+            Page(documentId = 6L, pageIndex = 1, processedImagePath = "/old/scans/second.jpg",
+                originalImagePath = "/old/scans/orig-second.jpg", thumbnailPath = "/old/thumbs/second.jpg"),
+            Page(documentId = 6L, pageIndex = 0, processedImagePath = "/old/scans/first.jpg",
+                originalImagePath = "/old/scans/orig-first.jpg", thumbnailPath = "/old/thumbs/first.jpg")
+        )
+        StorageVault.saveDocumentMetadata(context, Document(id = 6L, title = "Portable", pageCount = 99), pages)
+
+        val json = JSONObject(File(StorageVault.getMetaDirectory(context), "doc_6_meta.json").readText())
+        assertEquals(2, json.getInt("pageCount"))
+        val saved = json.getJSONArray("pages")
+        assertEquals(1, saved.getJSONObject(0).getInt("pageIndex"))
+        assertEquals(0, saved.getJSONObject(1).getInt("pageIndex"))
+        assertEquals("second.jpg", saved.getJSONObject(0).getString("processedFileName"))
+        assertEquals("orig-second.jpg", saved.getJSONObject(0).getString("originalFileName"))
+        assertEquals("second.jpg", saved.getJSONObject(0).getString("thumbnailFileName"))
+    }
+
 }
