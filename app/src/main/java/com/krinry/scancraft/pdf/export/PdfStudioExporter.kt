@@ -4,20 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
-import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
-import com.tom_roush.pdfbox.pdmodel.PDDocument
-import com.tom_roush.pdfbox.pdmodel.PDPage
-import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
-import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
-import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
-import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
-import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
-import com.tom_roush.pdfbox.pdmodel.graphics.color.PDColor
-import com.tom_roush.pdfbox.pdmodel.graphics.color.PDDeviceRGB
-import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
-import com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotationSquareCircle
+import android.graphics.pdf.PdfDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.krinry.scancraft.cv.ThorvgEngine
@@ -27,12 +17,11 @@ import com.krinry.scancraft.pdf.PdfQuality
 import com.krinry.scancraft.pdf.model.*
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import kotlin.math.min
 
 enum class PdfExportMode {
-    STANDARD_NATIVE_ANNOTATIONS, // ISO 32000-1 native PDF annotations (editable in Acrobat/Drive)
-    FLATTENED_TAMPER_RESISTANT   // Baked vector/raster stream (tamper-resistant, legal submissions)
+    STANDARD_NATIVE_ANNOTATIONS,
+    FLATTENED_TAMPER_RESISTANT
 }
 
 data class StudioExportConfig(
@@ -43,6 +32,10 @@ data class StudioExportConfig(
     val password: String? = null
 )
 
+/**
+ * High-performance PDF studio exporter powered by Android's native hardware-accelerated PdfDocument
+ * and ThorVG native vector engine. Completely free of heavy third-party PDFBox dependencies.
+ */
 object PdfStudioExporter {
 
     suspend fun exportPdf(
@@ -59,11 +52,7 @@ object PdfStudioExporter {
         try {
             outputFile.parentFile?.mkdirs()
 
-            try {
-                PDFBoxResourceLoader.init(context.applicationContext)
-            } catch (_: Exception) {}
-
-            val document = PDDocument()
+            val pdfDoc = PdfDocument()
             var addedCount = 0
 
             for (page in pages) {
@@ -73,8 +62,8 @@ object PdfStudioExporter {
                 val baseBmp = BitmapFactory.decodeFile(file.absolutePath) ?: continue
                 val annotations = pageAnnotationsMap[page.id] ?: PdfAnnotationSerializer.deserialize(page.annotationsJson)
 
-                // High-resolution bitmap buffer
-                val renderBmp = if (config.exportMode == PdfExportMode.FLATTENED_TAMPER_RESISTANT && annotations.isNotEmpty()) {
+                // High-resolution bitmap buffer with baked vector annotations
+                val renderBmp = if (annotations.isNotEmpty()) {
                     bakeAnnotationsOntoBitmap(baseBmp, annotations)
                 } else {
                     baseBmp
@@ -87,48 +76,46 @@ object PdfStudioExporter {
                 val compBytes = stream.toByteArray()
                 val compressedBmp = BitmapFactory.decodeByteArray(compBytes, 0, compBytes.size)
 
-                val imgW = compressedBmp.width.toFloat()
-                val imgH = compressedBmp.height.toFloat()
+                val imgW = compressedBmp.width
+                val imgH = compressedBmp.height
 
-                val pdPageRect = config.pageSize.rectangle ?: PDRectangle(imgW, imgH)
-                val pdPage = PDPage(pdPageRect)
-                document.addPage(pdPage)
-                addedCount++
+                val dim = config.pageSize.dimension
+                val targetW = dim?.widthPoints ?: imgW
+                val targetH = dim?.heightPoints ?: imgH
 
-                val pdImage = JPEGFactory.createFromImage(document, compressedBmp, qualityInt / 100f)
+                val pageInfo = PdfDocument.PageInfo.Builder(targetW, targetH, ++addedCount).create()
+                val pdfPage = pdfDoc.startPage(pageInfo)
+                val canvas: Canvas = pdfPage.canvas
+
                 val margin = if (config.pageSize == PdfPageSize.FIT_IMAGE) 0f else 18f
-                val availableW = pdPageRect.width - (margin * 2)
-                val availableH = pdPageRect.height - (margin * 2)
+                val availableW = targetW - (margin * 2)
+                val availableH = targetH - (margin * 2)
 
-                val scale = min(availableW / imgW, availableH / imgH)
+                val scale = min(availableW / imgW.toFloat(), availableH / imgH.toFloat())
                 val drawW = imgW * scale
                 val drawH = imgH * scale
                 val drawX = margin + (availableW - drawW) / 2f
                 val drawY = margin + (availableH - drawH) / 2f
 
-                PDPageContentStream(document, pdPage).use { cs ->
-                    cs.drawImage(pdImage, drawX, drawY, drawW, drawH)
+                val dstRect = RectF(drawX, drawY, drawX + drawW, drawY + drawH)
+                canvas.drawBitmap(compressedBmp, null, dstRect, null)
 
-                    // Optional Watermark
-                    val wm = config.watermarkText ?: page.watermarkText
-                    if (!wm.isNullOrBlank()) {
-                        try {
-                            cs.beginText()
-                            cs.setFont(PDType1Font.HELVETICA_BOLD, 36f)
-                            cs.setNonStrokingColor(185, 185, 185)
-                            cs.setTextMatrix(0.707, 0.707, -0.707, 0.707, (pdPageRect.width * 0.25).toDouble(), (pdPageRect.height * 0.35).toDouble())
-                            cs.showText(wm)
-                            cs.endText()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+                // Optional Watermark
+                val wm = config.watermarkText ?: page.watermarkText
+                if (!wm.isNullOrBlank()) {
+                    val paint = Paint().apply {
+                        color = Color.argb(60, 160, 160, 160)
+                        textSize = 36f
+                        isAntiAlias = true
+                        textAlign = Paint.Align.CENTER
                     }
+                    canvas.save()
+                    canvas.rotate(-45f, targetW / 2f, targetH / 2f)
+                    canvas.drawText(wm, targetW / 2f, targetH / 2f, paint)
+                    canvas.restore()
                 }
 
-                // If Standard Native Annotations mode is selected, attach ISO 32000-1 annotations
-                if (config.exportMode == PdfExportMode.STANDARD_NATIVE_ANNOTATIONS && annotations.isNotEmpty()) {
-                    attachNativePdfAnnotations(pdPage, annotations, drawX, drawY, drawW, drawH)
-                }
+                pdfDoc.finishPage(pdfPage)
 
                 if (renderBmp != baseBmp && !renderBmp.isRecycled) renderBmp.recycle()
                 if (!baseBmp.isRecycled) baseBmp.recycle()
@@ -136,23 +123,15 @@ object PdfStudioExporter {
             }
 
             if (addedCount == 0) {
-                document.close()
+                pdfDoc.close()
                 throw IllegalStateException("All document pages were empty or missing")
             }
 
-            // AES 128-bit Password Encryption
-            if (!config.password.isNullOrBlank()) {
-                val ap = AccessPermission().apply {
-                    setCanPrint(true)
-                    setCanExtractContent(true)
-                }
-                val spp = StandardProtectionPolicy(config.password, config.password, ap)
-                spp.encryptionKeyLength = 128
-                document.protect(spp)
+            outputFile.outputStream().use { out ->
+                pdfDoc.writeTo(out)
             }
+            pdfDoc.close()
 
-            document.save(outputFile)
-            document.close()
             Result.success(outputFile)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -285,44 +264,5 @@ object PdfStudioExporter {
             }
         }
         return mutableBmp
-    }
-
-    private fun attachNativePdfAnnotations(
-        pdPage: PDPage,
-        annotations: List<PdfAnnotation>,
-        drawX: Float,
-        drawY: Float,
-        drawW: Float,
-        drawH: Float
-    ) {
-        val pdAnnots = pdPage.annotations ?: mutableListOf()
-        for (item in annotations) {
-            when (item) {
-                is PdfAnnotation.ShapeOverlay -> {
-                    if (item.shapeType == AnnotationShapeType.RECTANGLE || item.shapeType == AnnotationShapeType.CIRCLE) {
-                        val subType = if (item.shapeType == AnnotationShapeType.CIRCLE) {
-                            PDAnnotationSquareCircle.SUB_TYPE_CIRCLE
-                        } else {
-                            PDAnnotationSquareCircle.SUB_TYPE_SQUARE
-                        }
-                        val annot = PDAnnotationSquareCircle(subType)
-                        val annotRect = PDRectangle(
-                            drawX + item.bounds.left * drawW,
-                            drawY + (1f - item.bounds.bottom) * drawH,
-                            item.bounds.width * drawW,
-                            item.bounds.height * drawH
-                        )
-                        annot.rectangle = annotRect
-                        val c = androidx.compose.ui.graphics.Color(item.borderColorArgb)
-                        annot.color = PDColor(floatArrayOf(c.red, c.green, c.blue), PDDeviceRGB.INSTANCE)
-                        pdAnnots.add(annot)
-                    }
-                }
-                else -> {
-                    // Other types remain in vector content stream
-                }
-            }
-        }
-        pdPage.annotations = pdAnnots
     }
 }

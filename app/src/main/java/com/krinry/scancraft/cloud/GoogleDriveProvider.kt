@@ -6,26 +6,26 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
-import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
-import com.google.api.client.http.FileContent
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.drive.Drive
-import com.google.api.services.drive.DriveScopes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
-import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 /**
- * Google Drive synchronization provider supporting:
- * 1. Native Google Play Services Auth (GoogleSignInClient) & Google Drive REST API v3
- * 2. Direct Google Drive Storage Access Framework (SAF) folder mounting (no Google Cloud Console setup required)
- * 3. Custom Google OAuth 2.0 Web Client ID / Token integration
+ * Lightweight Google Drive synchronization provider supporting:
+ * 1. Direct Google Drive Storage Access Framework (SAF) folder mounting (offline, private, zero-config)
+ * 2. Native Google Sign-In & direct Google Drive REST API v3 over OkHttp
+ * Completely eliminates heavy legacy Google API Client and Drive Services SDK dependencies.
  */
 class GoogleDriveProvider(private val context: Context) : CloudProvider {
 
@@ -33,6 +33,14 @@ class GoogleDriveProvider(private val context: Context) : CloudProvider {
     override val displayName: String = "Google Drive"
 
     private val prefs = context.getSharedPreferences("scancraft_cloud_sync", Context.MODE_PRIVATE)
+
+    private val httpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
 
     companion object {
         const val PREF_ACCOUNT = "gdrive_account_email"
@@ -44,13 +52,20 @@ class GoogleDriveProvider(private val context: Context) : CloudProvider {
         const val APP_PACKAGE_NAME = "com.krinry.scancraft"
         const val DEBUG_SHA1 = "9C:40:44:66:6F:73:1C:9E:2D:D3:86:F1:5B:04:48:A8:0A:08:7A:35"
         const val DEBUG_SHA256 = "72:3B:83:B3:A8:4A:B3:44:B9:12:08:1F:FA:C7:4A:DF:2C:71:AB:A1:E2:A3:9C:D2:B8:CD:06:55:D3:9F:BA:3B"
+
+        const val DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+        const val DRIVE_APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
+
+        private const val URL_DRIVE_ABOUT = "https://www.googleapis.com/drive/v3/about?fields=storageQuota"
+        private const val URL_DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart"
+        private const val URL_DRIVE_FILES = "https://www.googleapis.com/drive/v3/files"
     }
 
     fun getSignInIntent(webClientId: String? = null): Intent {
         val clientId = webClientId ?: prefs.getString(PREF_WEB_CLIENT_ID, null)
         val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
-            .requestScopes(Scope(DriveScopes.DRIVE_FILE), Scope(DriveScopes.DRIVE_APPDATA))
+            .requestScopes(Scope(DRIVE_FILE_SCOPE), Scope(DRIVE_APPDATA_SCOPE))
 
         if (!clientId.isNullOrBlank()) {
             builder.requestIdToken(clientId.trim())
@@ -94,7 +109,7 @@ class GoogleDriveProvider(private val context: Context) : CloudProvider {
         if (!prefEnabled) return@withContext false
 
         val account = GoogleSignIn.getLastSignedInAccount(context)
-        val hasScope = account != null && GoogleSignIn.hasPermissions(account, Scope(DriveScopes.DRIVE_FILE))
+        val hasScope = account != null && GoogleSignIn.hasPermissions(account, Scope(DRIVE_FILE_SCOPE))
         val hasEmail = prefs.getString(PREF_ACCOUNT, null) != null
         val hasSaf = prefs.getString(PREF_SAF_URI, null) != null
         val hasToken = prefs.getString(PREF_AUTH_TOKEN, null) != null
@@ -106,9 +121,7 @@ class GoogleDriveProvider(private val context: Context) : CloudProvider {
         try {
             val builder = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
             GoogleSignIn.getClient(context, builder).signOut()
-        } catch (e: Exception) {
-            // Ignore sign out error
-        }
+        } catch (_: Exception) {}
         prefs.edit()
             .remove(PREF_ACCOUNT)
             .remove(PREF_SAF_URI)
@@ -128,41 +141,74 @@ class GoogleDriveProvider(private val context: Context) : CloudProvider {
     }
 
     override suspend fun getQuota(): CloudQuota? = withContext(Dispatchers.IO) {
+        val token = getOAuthToken() ?: return@withContext null
         try {
-            val drive = getDriveService() ?: return@withContext null
-            val about = drive.about().get().setFields("storageQuota").execute()
-            val quota = about.storageQuota ?: return@withContext null
-            val used = quota.usage ?: 0L
-            val limit = quota.limit ?: (15L * 1024 * 1024 * 1024)
+            val request = Request.Builder()
+                .url(URL_DRIVE_ABOUT)
+                .header("Authorization", "Bearer $token")
+                .get()
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (!response.isSuccessful) return@withContext null
+
+            val jsonBody = response.body?.string() ?: return@withContext null
+            val quotaJson = JSONObject(jsonBody).optJSONObject("storageQuota") ?: return@withContext null
+
+            val used = quotaJson.optLong("usage", 0L)
+            val limit = quotaJson.optLong("limit", 15L * 1024 * 1024 * 1024)
             CloudQuota(usedBytes = used, totalBytes = limit)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
 
     override suspend fun uploadFile(file: File, mimeType: String): Result<String> = withContext(Dispatchers.IO) {
-        // 1. Try via SAF Google Drive folder if configured
+        // 1. Primary: SAF Google Drive folder if configured
         val safUriStr = prefs.getString(PREF_SAF_URI, null)
         if (!safUriStr.isNullOrBlank()) {
             return@withContext uploadViaSaf(file, mimeType, Uri.parse(safUriStr))
         }
 
-        // 2. Try via Google Drive API SDK
+        // 2. Direct REST Upload via OAuth token
+        val token = getOAuthToken()
+            ?: return@withContext Result.failure(IllegalStateException("Google Drive is not authenticated. Please select a Drive folder or enter Auth Token."))
+
         try {
-            val drive = getDriveService()
-                ?: return@withContext Result.failure(IllegalStateException("Google Drive is not authenticated"))
+            val folderId = getOrCreateScanCraftFolder(token)
 
-            val folderId = getOrCreateScanCraftFolder(drive)
-            val fileMetadata = com.google.api.services.drive.model.File().apply {
-                name = file.name
-                parents = Collections.singletonList(folderId)
+            val metadataJson = JSONObject().apply {
+                put("name", file.name)
+                if (!folderId.isNullOrBlank()) {
+                    put("parents", org.json.JSONArray().put(folderId))
+                }
+            }.toString()
+
+            val multipartBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addPart(
+                    metadataJson.toRequestBody("application/json; charset=UTF-8".toMediaType())
+                )
+                .addPart(
+                    file.asRequestBody(mimeType.toMediaType())
+                )
+                .build()
+
+            val request = Request.Builder()
+                .url(URL_DRIVE_UPLOAD)
+                .header("Authorization", "Bearer $token")
+                .post(multipartBody)
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                val err = response.body?.string() ?: "HTTP ${response.code}"
+                return@withContext Result.failure(IllegalStateException("Drive upload failed: $err"))
             }
-            val mediaContent = FileContent(mimeType, file)
-            val uploaded = drive.files().create(fileMetadata, mediaContent)
-                .setFields("id, name, webViewLink")
-                .execute()
 
-            Result.success(uploaded.id ?: file.name)
+            val body = response.body?.string()
+            val fileId = if (!body.isNullOrBlank()) JSONObject(body).optString("id", file.name) else file.name
+            Result.success(fileId)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -173,29 +219,20 @@ class GoogleDriveProvider(private val context: Context) : CloudProvider {
             return@withContext SyncResult.Error("Google Drive is not connected")
         }
 
-        // 1. If connected via SAF Google Drive folder
         val safUriStr = prefs.getString(PREF_SAF_URI, null)
         if (!safUriStr.isNullOrBlank()) {
             return@withContext syncViaSaf(files, Uri.parse(safUriStr))
         }
 
-        // 2. If connected via Drive REST API SDK
-        val drive = getDriveService()
-            ?: return@withContext SyncResult.Error("Google Drive service unavailable")
-
         var uploadedCount = 0
         try {
-            val folderId = getOrCreateScanCraftFolder(drive)
             for (file in files) {
                 if (!file.exists() || file.length() == 0L) continue
                 val mime = if (file.name.endsWith(".pdf", ignoreCase = true)) "application/pdf" else "image/jpeg"
-                val fileMetadata = com.google.api.services.drive.model.File().apply {
-                    name = file.name
-                    parents = Collections.singletonList(folderId)
+                val res = uploadFile(file, mime)
+                if (res.isSuccess) {
+                    uploadedCount++
                 }
-                val mediaContent = FileContent(mime, file)
-                drive.files().create(fileMetadata, mediaContent).setFields("id").execute()
-                uploadedCount++
             }
             SyncResult.Success(uploadedCount, "Successfully uploaded $uploadedCount files to Google Drive/ScanCraft")
         } catch (e: Exception) {
@@ -247,35 +284,57 @@ class GoogleDriveProvider(private val context: Context) : CloudProvider {
         }
     }
 
-    private fun getDriveService(): Drive? {
-        val account = GoogleSignIn.getLastSignedInAccount(context) ?: return null
-        val credential = GoogleAccountCredential.usingOAuth2(
-            context,
-            listOf(DriveScopes.DRIVE_FILE, DriveScopes.DRIVE_APPDATA)
-        ).apply {
-            selectedAccount = account.account
-        }
+    private fun getOAuthToken(): String? {
+        val manualToken = prefs.getString(PREF_AUTH_TOKEN, null)
+        if (!manualToken.isNullOrBlank()) return manualToken
 
-        return Drive.Builder(
-            NetHttpTransport(),
-            GsonFactory.getDefaultInstance(),
-            credential
-        ).setApplicationName("ScanCraft").build()
+        val account = GoogleSignIn.getLastSignedInAccount(context)
+        return account?.idToken
     }
 
-    private fun getOrCreateScanCraftFolder(drive: Drive): String {
-        val query = "mimeType='application/vnd.google-apps.folder' and name='ScanCraft' and trashed=false"
-        val result = drive.files().list().setQ(query).setSpaces("drive").setFields("files(id, name)").execute()
-        val existing = result.files?.firstOrNull()
-        if (existing != null) {
-            return existing.id
-        }
+    private fun getOrCreateScanCraftFolder(token: String): String? {
+        return try {
+            val query = "mimeType='application/vnd.google-apps.folder' and name='ScanCraft' and trashed=false"
+            val url = "$URL_DRIVE_FILES?q=${Uri.encode(query)}&spaces=drive&fields=files(id,name)"
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $token")
+                .get()
+                .build()
 
-        val folderMetadata = com.google.api.services.drive.model.File().apply {
-            name = "ScanCraft"
-            mimeType = "application/vnd.google-apps.folder"
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val body = response.body?.string()
+                if (!body.isNullOrBlank()) {
+                    val filesArray = JSONObject(body).optJSONArray("files")
+                    if (filesArray != null && filesArray.length() > 0) {
+                        return filesArray.getJSONObject(0).optString("id")
+                    }
+                }
+            }
+
+            // Create folder
+            val folderMetadata = JSONObject().apply {
+                put("name", "ScanCraft")
+                put("mimeType", "application/vnd.google-apps.folder")
+            }.toString()
+
+            val createReq = Request.Builder()
+                .url(URL_DRIVE_FILES)
+                .header("Authorization", "Bearer $token")
+                .post(folderMetadata.toRequestBody("application/json".toMediaType()))
+                .build()
+
+            val createResp = httpClient.newCall(createReq).execute()
+            if (createResp.isSuccessful) {
+                val createBody = createResp.body?.string()
+                if (!createBody.isNullOrBlank()) {
+                    return JSONObject(createBody).optString("id")
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
         }
-        val folder = drive.files().create(folderMetadata).setFields("id").execute()
-        return folder.id
     }
 }

@@ -12,13 +12,8 @@ coroutines = "1.8.1"
 navigationCompose = "2.7.7"
 documentfile = "1.0.1"
 mlkitTextRecognition = "16.0.1"
-pdfbox = "2.0.27.0"
 coil = "2.7.0"
-ink = "1.0.0-alpha02"
 playServicesAuth = "21.2.0"
-googleDriveApi = "v3-rev20220815-2.0.0"
-googleApiClient = "2.2.0"
-dropboxCore = "5.4.5"
 okhttp = "4.12.0"
 
 [libraries]
@@ -59,22 +54,9 @@ google-mlkit-text-devanagari = { group = "com.google.mlkit", name = "text-recogn
 google-mlkit-text-chinese = { group = "com.google.mlkit", name = "text-recognition-chinese", version.ref = "mlkitTextRecognition" }
 google-mlkit-text-japanese = { group = "com.google.mlkit", name = "text-recognition-japanese", version.ref = "mlkitTextRecognition" }
 
-# Cloud SDKs & Networking
+# Cloud Authentication & Networking
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
-google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleDriveApi" }
-google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClient" }
-dropbox-core-sdk = { group = "com.dropbox.core", name = "dropbox-core-sdk", version.ref = "dropboxCore" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
-
-# PDF Rendering & Generation
-pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfbox" }
-
-# AndroidX Ink
-androidx-ink-brush = { group = "androidx.ink", name = "ink-brush", version.ref = "ink" }
-androidx-ink-strokes = { group = "androidx.ink", name = "ink-strokes", version.ref = "ink" }
-androidx-ink-geometry = { group = "androidx.ink", name = "ink-geometry", version.ref = "ink" }
-androidx-ink-rendering = { group = "androidx.ink", name = "ink-rendering", version.ref = "ink" }
-androidx-ink-authoring = { group = "androidx.ink", name = "ink-authoring", version.ref = "ink" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

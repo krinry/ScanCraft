@@ -3,70 +3,96 @@ package com.krinry.scancraft.ink
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.ink.brush.Brush
-import androidx.ink.brush.InputToolType
-import androidx.ink.brush.StockBrushes
-import androidx.ink.strokes.MutableStrokeInputBatch
-import androidx.ink.strokes.Stroke
 
 /**
- * High-precision touch and stylus digital ink manager powered by AndroidX Ink.
- * Captures touch streams, configures realistic stock brushes, and produces
- * smoothed vector coordinate arrays for native ThorVG rendering.
+ * Brush representation for custom digital ink strokes.
+ */
+enum class InkBrushType {
+    PEN,
+    HIGHLIGHTER
+}
+
+data class InkBrush(
+    val size: Float,
+    val colorArgb: Int,
+    val type: InkBrushType = InkBrushType.PEN,
+    val opacity: Float = if (type == InkBrushType.HIGHLIGHTER) 0.35f else 1.0f
+)
+
+data class InkStroke(
+    val brush: InkBrush,
+    val points: List<Offset>,
+    val smoothedPoints: List<Offset> = InkStrokeManager.smoothPoints(points)
+)
+
+/**
+ * Lightweight, zero-dependency custom digital ink and vector stroke processor.
+ * Replaces heavy external Ink libraries with pure Kotlin vector smoothing
+ * and fast point-array flattening for native ThorVG rendering.
  */
 object InkStrokeManager {
 
-    fun createPenBrush(size: Float, color: Color): Brush {
+    fun createPenBrush(size: Float, color: Color): InkBrush {
         return createPenBrush(size, color.toArgb())
     }
 
-    fun createPenBrush(size: Float, colorArgb: Int): Brush {
-        return Brush.createWithColorIntArgb(
-            family = StockBrushes.pressurePenLatest,
-            colorIntArgb = colorArgb,
+    fun createPenBrush(size: Float, colorArgb: Int): InkBrush {
+        return InkBrush(
             size = size,
-            epsilon = 0.1f
+            colorArgb = colorArgb,
+            type = InkBrushType.PEN
         )
     }
 
-    fun createHighlighterBrush(size: Float, color: Color): Brush {
+    fun createHighlighterBrush(size: Float, color: Color): InkBrush {
         return createHighlighterBrush(size, color.toArgb())
     }
 
-    fun createHighlighterBrush(size: Float, colorArgb: Int): Brush {
-        return Brush.createWithColorIntArgb(
-            family = StockBrushes.highlighterLatest,
-            colorIntArgb = colorArgb,
+    fun createHighlighterBrush(size: Float, colorArgb: Int): InkBrush {
+        return InkBrush(
             size = size,
-            epsilon = 0.1f
+            colorArgb = colorArgb,
+            type = InkBrushType.HIGHLIGHTER
         )
     }
 
     /**
-     * Builds an AndroidX Ink Stroke from a sequence of touch offsets.
+     * Builds a custom InkStroke from a sequence of touch offsets.
      */
     fun createStroke(
         points: List<Offset>,
-        brush: Brush
-    ): Stroke? {
+        brush: InkBrush
+    ): InkStroke? {
         if (points.size < 2) return null
-        val batch = MutableStrokeInputBatch()
+        return InkStroke(
+            brush = brush,
+            points = points
+        )
+    }
 
-        points.forEachIndexed { index, pt ->
-            val elapsed = (index * 16).toLong()
-            batch.addOrIgnore(
-                type = InputToolType.TOUCH,
-                x = pt.x,
-                y = pt.y,
-                elapsedTimeMillis = elapsed
-            )
-        }
+    /**
+     * Smooths an input path using Chaikin's corner cutting algorithm.
+     * Produces smooth, natural handwriting curves without external dependencies.
+     */
+    fun smoothPoints(points: List<Offset>, iterations: Int = 1): List<Offset> {
+        if (points.size <= 2 || iterations <= 0) return points
 
-        return try {
-            Stroke(brush = brush, inputs = batch)
-        } catch (_: Exception) {
-            null
+        var current = points
+        repeat(iterations) {
+            val smoothed = ArrayList<Offset>(current.size * 2)
+            smoothed.add(current.first())
+            for (i in 0 until current.size - 1) {
+                val p0 = current[i]
+                val p1 = current[i + 1]
+                val q = Offset(0.75f * p0.x + 0.25f * p1.x, 0.75f * p0.y + 0.25f * p1.y)
+                val r = Offset(0.25f * p0.x + 0.75f * p1.x, 0.25f * p0.y + 0.75f * p1.y)
+                smoothed.add(q)
+                smoothed.add(r)
+            }
+            smoothed.add(current.last())
+            current = smoothed
         }
+        return current
     }
 
     /**

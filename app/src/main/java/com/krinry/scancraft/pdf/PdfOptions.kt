@@ -1,11 +1,14 @@
 package com.krinry.scancraft.pdf
 
-import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+/**
+ * Standard PDF document dimensions in PostScript points (72 points/inch).
+ */
+data class PdfDimension(val widthPoints: Int, val heightPoints: Int)
 
-enum class PdfPageSize(val title: String, val rectangle: PDRectangle?) {
-    A4("A4 (210 x 297 mm)", PDRectangle.A4),
-    LETTER("US Letter (8.5 x 11 in)", PDRectangle.LETTER),
-    LEGAL("US Legal", PDRectangle.LEGAL),
+enum class PdfPageSize(val title: String, val dimension: PdfDimension?) {
+    A4("A4 (210 x 297 mm)", PdfDimension(595, 842)),
+    LETTER("US Letter (8.5 x 11 in)", PdfDimension(612, 792)),
+    LEGAL("US Legal (8.5 x 14 in)", PdfDimension(612, 1008)),
     FIT_IMAGE("Fit to Image Size", null)
 }
 

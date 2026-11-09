@@ -162,23 +162,9 @@ dependencies {
     implementation(libs.google.mlkit.text.chinese)
     implementation(libs.google.mlkit.text.japanese)
 
-    // Cloud SDKs
+    // Cloud & Storage
     implementation(libs.play.services.auth)
-    implementation(libs.google.api.services.drive)
-    implementation("com.google.api-client:google-api-client-android:1.35.2")
-    implementation(libs.dropbox.core.sdk)
     implementation(libs.okhttp)
-    implementation("androidx.documentfile:documentfile:1.0.1")
-
-    // PDFBox Android
-    implementation(libs.pdfbox.android)
-
-    // AndroidX Ink
-    implementation(libs.androidx.ink.brush)
-    implementation(libs.androidx.ink.strokes)
-    implementation(libs.androidx.ink.geometry)
-    implementation(libs.androidx.ink.rendering)
-    implementation(libs.androidx.ink.authoring)
 
     debugImplementation(libs.androidx.ui.tooling)
 

@@ -2,10 +2,13 @@ package com.krinry.scancraft.ink
 
 import androidx.compose.ui.geometry.Offset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for InkStrokeManager coordinate flattening and vector serialization.
+ * Unit tests for custom InkStrokeManager coordinate flattening and vector smoothing.
  */
 class InkStrokeManagerTest {
 
@@ -30,5 +33,23 @@ class InkStrokeManagerTest {
     fun testEmptyPointsReturnsEmptyArray() {
         val flat = InkStrokeManager.toFlatPoints(emptyList())
         assertEquals(0, flat.size)
+    }
+
+    @Test
+    fun testStrokeCreationAndSmoothing() {
+        val brush = InkStrokeManager.createPenBrush(4f, 0xFF000000.toInt())
+        val points = listOf(
+            Offset(0f, 0f),
+            Offset(50f, 100f),
+            Offset(100f, 0f)
+        )
+        val stroke = InkStrokeManager.createStroke(points, brush)
+        assertNotNull(stroke)
+        assertEquals(3, stroke!!.points.size)
+        assertTrue(stroke.smoothedPoints.size > stroke.points.size)
+
+        // Single point should not create a stroke
+        val singlePointStroke = InkStrokeManager.createStroke(listOf(Offset(10f, 10f)), brush)
+        assertNull(singlePointStroke)
     }
 }

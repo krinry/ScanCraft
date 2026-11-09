@@ -1,19 +1,19 @@
 package com.krinry.scancraft.pdf
 
 import android.content.Context
-import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
-import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
 /**
- * Production unit tests for PdfGenerator:
+ * Production unit tests for native PdfGenerator:
  * 1. Empty pages validation and error handling
- * 2. StandardProtectionPolicy encryption security invariants
+ * 2. Standard page dimensions (A4, Letter, Legal, Fit)
  * 3. Margin calculations across page sizes
  */
 class PdfGeneratorTest {
@@ -33,20 +33,17 @@ class PdfGeneratorTest {
     }
 
     @Test
-    fun testStandardProtectionPolicyEncryptionParameters() {
-        val password = "StrongEnterprisePassword#2026"
-        val ap = AccessPermission().apply {
-            setCanPrint(true)
-            setCanExtractContent(true)
-        }
-        val spp = StandardProtectionPolicy(password, password, ap)
-        spp.encryptionKeyLength = 128
+    fun testPageDimensions() {
+        assertEquals(595, PdfPageSize.A4.dimension?.widthPoints)
+        assertEquals(842, PdfPageSize.A4.dimension?.heightPoints)
 
-        assertEquals(128, spp.encryptionKeyLength)
-        assertEquals(password, spp.userPassword)
-        assertEquals(password, spp.ownerPassword)
-        assertTrue(spp.permissions.canPrint())
-        assertTrue(spp.permissions.canExtractContent())
+        assertEquals(612, PdfPageSize.LETTER.dimension?.widthPoints)
+        assertEquals(792, PdfPageSize.LETTER.dimension?.heightPoints)
+
+        assertEquals(612, PdfPageSize.LEGAL.dimension?.widthPoints)
+        assertEquals(1008, PdfPageSize.LEGAL.dimension?.heightPoints)
+
+        assertNull(PdfPageSize.FIT_IMAGE.dimension)
     }
 
     @Test

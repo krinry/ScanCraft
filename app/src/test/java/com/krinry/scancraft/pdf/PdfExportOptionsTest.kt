@@ -1,7 +1,7 @@
 package com.krinry.scancraft.pdf
 
-import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -13,16 +13,22 @@ class PdfExportOptionsTest {
     @Test
     fun testPdfPageSizeDefinitions() {
         assertEquals("A4 (210 x 297 mm)", PdfPageSize.A4.title)
-        assertEquals(PDRectangle.A4, PdfPageSize.A4.rectangle)
+        assertNotNull(PdfPageSize.A4.dimension)
+        assertEquals(595, PdfPageSize.A4.dimension?.widthPoints)
+        assertEquals(842, PdfPageSize.A4.dimension?.heightPoints)
 
         assertEquals("US Letter (8.5 x 11 in)", PdfPageSize.LETTER.title)
-        assertEquals(PDRectangle.LETTER, PdfPageSize.LETTER.rectangle)
+        assertNotNull(PdfPageSize.LETTER.dimension)
+        assertEquals(612, PdfPageSize.LETTER.dimension?.widthPoints)
+        assertEquals(792, PdfPageSize.LETTER.dimension?.heightPoints)
 
-        assertEquals("US Legal", PdfPageSize.LEGAL.title)
-        assertEquals(PDRectangle.LEGAL, PdfPageSize.LEGAL.rectangle)
+        assertEquals("US Legal (8.5 x 14 in)", PdfPageSize.LEGAL.title)
+        assertNotNull(PdfPageSize.LEGAL.dimension)
+        assertEquals(612, PdfPageSize.LEGAL.dimension?.widthPoints)
+        assertEquals(1008, PdfPageSize.LEGAL.dimension?.heightPoints)
 
         assertEquals("Fit to Image Size", PdfPageSize.FIT_IMAGE.title)
-        assertNull(PdfPageSize.FIT_IMAGE.rectangle)
+        assertNull(PdfPageSize.FIT_IMAGE.dimension)
     }
 
     @Test
@@ -48,12 +54,12 @@ class PdfExportOptionsTest {
         val custom = PdfExportOptions(
             pageSize = PdfPageSize.LETTER,
             quality = PdfQuality.HIGH,
-            password = "SecretPass123!@#",
+            password = "SecretPassword",
             watermarkText = "CONFIDENTIAL"
         )
         assertEquals(PdfPageSize.LETTER, custom.pageSize)
         assertEquals(PdfQuality.HIGH, custom.quality)
-        assertEquals("SecretPass123!@#", custom.password)
+        assertEquals("SecretPassword", custom.password)
         assertEquals("CONFIDENTIAL", custom.watermarkText)
     }
 }
