@@ -16,16 +16,16 @@ object ThemeManager {
     private const val PREFS_NAME = "scancraft_theme_prefs"
     private const val KEY_THEME_MODE = "app_theme_mode"
 
-    private val _themeMode = MutableStateFlow(AppThemeMode.DARK)
+    private val _themeMode = MutableStateFlow(AppThemeMode.SYSTEM)
     val themeMode: StateFlow<AppThemeMode> = _themeMode.asStateFlow()
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val saved = prefs.getString(KEY_THEME_MODE, AppThemeMode.DARK.name) ?: AppThemeMode.DARK.name
+        val saved = prefs.getString(KEY_THEME_MODE, AppThemeMode.SYSTEM.name) ?: AppThemeMode.SYSTEM.name
         _themeMode.value = try {
             AppThemeMode.valueOf(saved)
         } catch (e: Exception) {
-            AppThemeMode.DARK
+            AppThemeMode.SYSTEM
         }
     }
 

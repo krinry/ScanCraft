@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -24,6 +25,7 @@ fun MergeDocumentsDialog(
     onDismiss: () -> Unit,
     onConfirmMerge: (mergedTitle: String, deleteOriginals: Boolean) -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val defaultTitle = remember {
         "Merged Doc " + SimpleDateFormat("MM-dd-yyyy HH.mm", Locale.getDefault()).format(Date())
     }
@@ -43,7 +45,7 @@ fun MergeDocumentsDialog(
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "Merge Documents",
-                    color = Color.White,
+                    color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
@@ -56,22 +58,24 @@ fun MergeDocumentsDialog(
             ) {
                 Text(
                     text = "Combine $selectedCount selected documents into a single multipage document.",
-                    color = Color.LightGray,
+                    color = colors.textSecondary,
                     fontSize = 13.sp
                 )
 
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Merged Document Name", color = Color.Gray) },
+                    label = { Text("Merged Document Name", color = colors.textSecondary) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
                         focusedBorderColor = ScannerGreen,
-                        unfocusedBorderColor = Color(0xFF444444),
+                        unfocusedBorderColor = colors.cardBorder,
                         focusedLabelColor = ScannerGreen,
-                        unfocusedLabelColor = Color.Gray
+                        unfocusedLabelColor = colors.textSecondary,
+                        focusedContainerColor = colors.surface,
+                        unfocusedContainerColor = colors.surface
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -87,13 +91,13 @@ fun MergeDocumentsDialog(
                         onCheckedChange = { deleteOriginals = it },
                         colors = CheckboxDefaults.colors(
                             checkedColor = ScannerGreen,
-                            uncheckedColor = Color.Gray
+                            uncheckedColor = colors.textMuted
                         )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Delete original documents after merging",
-                        color = Color.LightGray,
+                        color = colors.textPrimary,
                         fontSize = 13.sp
                     )
                 }
@@ -114,10 +118,10 @@ fun MergeDocumentsDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.Gray)
+                Text("Cancel", color = colors.textSecondary)
             }
         },
-        containerColor = Color(0xFF1E1E1E),
+        containerColor = colors.surface,
         shape = RoundedCornerShape(16.dp)
     )
 }

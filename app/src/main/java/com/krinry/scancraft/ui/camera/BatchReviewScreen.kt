@@ -56,6 +56,7 @@ import com.krinry.scancraft.cv.PointF
 import com.krinry.scancraft.data.model.EnhanceMode
 import com.krinry.scancraft.data.repository.ScannerRepository
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -69,12 +70,13 @@ fun BatchReviewScreen(
     batchQueue: List<BatchCaptureItem>,
     onRotateItem: (id: Long, clockwise: Boolean) -> Unit,
     onRemoveItem: (id: Long) -> Unit,
-    onUpdateCropQuad: (id: Long, quad: DocumentQuadrilateral) -> Unit,
+    onUpdateCropQuad: (id: Long, quad: DocumentQuadrilateral, rotationDegrees: Int?) -> Unit,
     onClose: () -> Unit,
     onBatchSaved: (savedDocId: Long) -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val colors = ScannerTheme.colors
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { batchQueue.size })
 
     // If batch queue becomes empty (e.g. user deleted all items), return to camera
@@ -145,7 +147,7 @@ fun BatchReviewScreen(
         val cachedBase = warpedBaseCache[item.id]
         if (cachedBase == null || cachedBase.isRecycled) {
             val warped = loadWarpedBaseBitmap(item) { detectedQuad ->
-                onUpdateCropQuad(item.id, detectedQuad)
+                onUpdateCropQuad(item.id, detectedQuad, item.rotationDegrees)
             }
             warpedBaseCache = warpedBaseCache + (item.id to warped)
 
@@ -192,7 +194,7 @@ fun BatchReviewScreen(
                     ) {
                         Text(
                             text = documentTitle,
-                            color = Color.White,
+                            color = colors.textPrimary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp,
                             maxLines = 1,
@@ -204,7 +206,7 @@ fun BatchReviewScreen(
                         Icon(
                             Icons.Outlined.Edit,
                             contentDescription = "Edit Title",
-                            tint = Color.Gray,
+                            tint = colors.textSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -214,7 +216,7 @@ fun BatchReviewScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = colors.textPrimary
                         )
                     }
                 },
@@ -274,14 +276,14 @@ fun BatchReviewScreen(
                         Text("Done", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface)
             )
         },
         bottomBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF0E0E0E))
+                    .background(colors.surface)
                     .navigationBarsPadding()
             ) {
                 // 1. "Apply to all pages" Switch Row
@@ -294,7 +296,7 @@ fun BatchReviewScreen(
                 ) {
                     Text(
                         text = "Apply to all pages",
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -343,10 +345,10 @@ fun BatchReviewScreen(
                                 modifier = Modifier
                                     .size(width = 54.dp, height = 72.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0xFF242424))
+                                    .background(colors.surfaceSecondary)
                                     .border(
                                         width = if (isSelected) 2.dp else 0.5.dp,
-                                        color = if (isSelected) ScannerGreen else Color(0xFF3A3A3A),
+                                        color = if (isSelected) ScannerGreen else colors.cardBorder,
                                         shape = RoundedCornerShape(6.dp)
                                     )
                             ) {
@@ -421,19 +423,20 @@ fun BatchReviewScreen(
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFF1E1E1E), thickness = 0.5.dp)
+                HorizontalDivider(color = colors.cardBorder, thickness = 0.5.dp)
 
                 // 3. Bottom Actions Toolbar (Retake, Add, Left, Right, Crop)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     BatchActionButton(
                         icon = Icons.Outlined.Cameraswitch,
                         label = "Retake",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             currentItem?.let { item ->
                                 onRemoveItem(item.id)
@@ -445,6 +448,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.Outlined.AddBox,
                         label = "Add",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             onClose()
                         }
@@ -453,6 +457,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.AutoMirrored.Filled.RotateLeft,
                         label = "Left",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             currentItem?.let { item ->
                                 warpedBaseCache = warpedBaseCache - item.id
@@ -465,6 +470,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.AutoMirrored.Filled.RotateRight,
                         label = "Right",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             currentItem?.let { item ->
                                 warpedBaseCache = warpedBaseCache - item.id
@@ -477,6 +483,7 @@ fun BatchReviewScreen(
                     BatchActionButton(
                         icon = Icons.Outlined.Crop,
                         label = "Crop",
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             cropEditingItem = currentItem
                         }
@@ -489,7 +496,7 @@ fun BatchReviewScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFF161616)),
+                .background(colors.background),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Document Page Viewport with Original Image Aspect Ratio & Live Cropped/Filtered Preview
@@ -574,19 +581,19 @@ fun BatchReviewScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                         contentDescription = "Previous Page",
-                        tint = if (pagerState.currentPage > 0) Color.White else Color(0xFF444444),
+                        tint = if (pagerState.currentPage > 0) colors.textPrimary else colors.textMuted,
                         modifier = Modifier.size(16.dp)
                     )
                 }
 
                 Surface(
                     shape = CircleShape,
-                    color = Color(0x66000000),
+                    color = colors.surfaceSecondary,
                     modifier = Modifier.padding(horizontal = 6.dp)
                 ) {
                     Text(
                         text = "${safeCurrentPage + 1}/${batchQueue.size}",
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
@@ -605,7 +612,7 @@ fun BatchReviewScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                         contentDescription = "Next Page",
-                        tint = if (pagerState.currentPage < batchQueue.size - 1) Color.White else Color(0xFF444444),
+                        tint = if (pagerState.currentPage < batchQueue.size - 1) colors.textPrimary else colors.textMuted,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -620,8 +627,8 @@ fun BatchReviewScreen(
 
         ModalBottomSheet(
             onDismissRequest = { showAdjustSheet = false },
-            containerColor = Color(0xFF1E1E1E),
-            dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+            containerColor = colors.surface,
+            dragHandle = { BottomSheetDefaults.DragHandle(color = colors.cardBorder) }
         ) {
             Column(
                 modifier = Modifier
@@ -637,7 +644,7 @@ fun BatchReviewScreen(
                     Column {
                         Text(
                             text = "Fine-Tune Tone",
-                            color = Color.White,
+                            color = colors.textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
@@ -673,10 +680,10 @@ fun BatchReviewScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Brightness", color = Color.LightGray, fontSize = 14.sp)
+                    Text("Brightness", color = colors.textSecondary, fontSize = 14.sp)
                     Text(
                         text = if (tempBrightness > 0) "+$tempBrightness" else "$tempBrightness",
-                        color = if (tempBrightness != 0) ScannerGreen else Color.Gray,
+                        color = if (tempBrightness != 0) ScannerGreen else colors.textMuted,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
@@ -697,7 +704,7 @@ fun BatchReviewScreen(
                     colors = SliderDefaults.colors(
                         thumbColor = ScannerGreen,
                         activeTrackColor = ScannerGreen,
-                        inactiveTrackColor = Color(0xFF333333)
+                        inactiveTrackColor = colors.cardBorder
                     )
                 )
 
@@ -708,10 +715,10 @@ fun BatchReviewScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Contrast", color = Color.LightGray, fontSize = 14.sp)
+                    Text("Contrast", color = colors.textSecondary, fontSize = 14.sp)
                     Text(
                         text = if (tempContrast > 0) "+$tempContrast" else "$tempContrast",
-                        color = if (tempContrast != 0) ScannerGreen else Color.Gray,
+                        color = if (tempContrast != 0) ScannerGreen else colors.textMuted,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
@@ -732,7 +739,7 @@ fun BatchReviewScreen(
                     colors = SliderDefaults.colors(
                         thumbColor = ScannerGreen,
                         activeTrackColor = ScannerGreen,
-                        inactiveTrackColor = Color(0xFF333333)
+                        inactiveTrackColor = colors.cardBorder
                     )
                 )
 
@@ -756,11 +763,11 @@ fun BatchReviewScreen(
     if (showDeleteConfirmDialog && currentItem != null) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
-            title = { Text("Delete Page?", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Delete Page?", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
                     "Are you sure you want to delete page ${safeCurrentPage + 1}?",
-                    color = Color.LightGray,
+                    color = colors.textSecondary,
                     fontSize = 14.sp
                 )
             },
@@ -784,10 +791,10 @@ fun BatchReviewScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -796,17 +803,17 @@ fun BatchReviewScreen(
         var tempTitle by remember { mutableStateOf(documentTitle) }
         AlertDialog(
             onDismissRequest = { showEditTitleDialog = false },
-            title = { Text("Edit Document Name", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Edit Document Name", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = tempTitle,
                     onValueChange = { tempTitle = it },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
                         focusedBorderColor = ScannerGreen,
-                        unfocusedBorderColor = Color.Gray
+                        unfocusedBorderColor = colors.cardBorder
                     )
                 )
             },
@@ -823,28 +830,45 @@ fun BatchReviewScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showEditTitleDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
-    // Modal Crop Screen for Batch Item
+    // Modal Crop Screen for Batch Items
     cropEditingItem?.let { item ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(colors.background)
         ) {
+            val cropItems = remember(batchQueue) {
+                batchQueue.map {
+                    com.krinry.scancraft.ui.crop.CropItem(
+                        id = it.id,
+                        imagePath = it.rawFilePath,
+                        initialQuad = it.cropQuad,
+                        rotationDegrees = it.rotationDegrees
+                    )
+                }
+            }
+            val initialIdx = batchQueue.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
             com.krinry.scancraft.ui.crop.CropScreen(
-                imagePath = item.rawFilePath,
+                items = cropItems,
+                initialIndex = initialIdx,
                 docId = docId,
-                initialQuad = item.cropQuad,
-                rotationDegrees = item.rotationDegrees,
+                onBatchCropConfirmed = { resultsMap ->
+                    resultsMap.forEach { (itemId, res) ->
+                        onUpdateCropQuad(itemId, res.quad, res.rotationDegrees)
+                        warpedBaseCache = warpedBaseCache - itemId
+                        previewDisplayCache = previewDisplayCache - itemId
+                    }
+                    cropEditingItem = null
+                },
                 onCropConfirmed = { newQuad ->
-                    onUpdateCropQuad(item.id, newQuad)
-                    // Invalidate caches so preview re-warps immediately with new quad
+                    onUpdateCropQuad(item.id, newQuad, item.rotationDegrees)
                     warpedBaseCache = warpedBaseCache - item.id
                     previewDisplayCache = previewDisplayCache - item.id
                     cropEditingItem = null
@@ -859,7 +883,8 @@ fun BatchReviewScreen(
         Dialog(onDismissRequest = {}) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF1E1E1E),
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.cardBorder),
                 tonalElevation = 8.dp
             ) {
                 Column(
@@ -868,7 +893,7 @@ fun BatchReviewScreen(
                 ) {
                     Text(
                         text = "Processing Document...",
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -882,12 +907,12 @@ fun BatchReviewScreen(
                             .fillMaxWidth()
                             .height(6.dp),
                         color = ScannerGreen,
-                        trackColor = Color.DarkGray
+                        trackColor = colors.cardBorder
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Page ${processingProgress.first} of ${processingProgress.second}",
-                        color = Color.LightGray,
+                        color = colors.textSecondary,
                         fontSize = 13.sp
                     )
                 }
@@ -900,17 +925,26 @@ fun BatchReviewScreen(
 fun BatchActionButton(
     icon: ImageVector,
     label: String,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
-        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = label, tint = colors.textPrimary, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.height(4.dp))
-        Text(label, color = Color.LightGray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Text(
+            text = label,
+            color = colors.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

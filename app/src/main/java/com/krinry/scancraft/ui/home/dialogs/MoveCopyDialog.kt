@@ -102,7 +102,8 @@ fun MoveCopyDialog(
                 .fillMaxWidth(0.92f)
                 .fillMaxHeight(0.82f),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xFF1E1E1E),
+            color = colors.surface,
+            border = BorderStroke(0.5.dp, colors.cardBorder),
             tonalElevation = 8.dp
         ) {
             Column(
@@ -119,18 +120,18 @@ fun MoveCopyDialog(
                     Column {
                         Text(
                             text = if (currentAction == MoveCopyAction.MOVE) "Move to Folder" else "Copy to Folder",
-                            color = Color.White,
+                            color = colors.textPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
                         Text(
                             text = "$selectedDocCount document(s) selected",
-                            color = Color.Gray,
+                            color = colors.textSecondary,
                             fontSize = 12.sp
                         )
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = colors.textSecondary)
                     }
                 }
 
@@ -142,7 +143,7 @@ fun MoveCopyDialog(
                         .fillMaxWidth()
                         .height(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2A2A2A))
+                        .background(colors.surfaceSecondary)
                         .padding(3.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -161,13 +162,13 @@ fun MoveCopyDialog(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Outlined.DriveFileMove,
                                 contentDescription = null,
-                                tint = if (currentAction == MoveCopyAction.MOVE) Color.White else Color.Gray,
+                                tint = if (currentAction == MoveCopyAction.MOVE) Color.White else colors.textSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Move",
-                                color = if (currentAction == MoveCopyAction.MOVE) Color.White else Color.Gray,
+                                color = if (currentAction == MoveCopyAction.MOVE) Color.White else colors.textSecondary,
                                 fontWeight = if (currentAction == MoveCopyAction.MOVE) FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 14.sp
                             )
@@ -189,13 +190,13 @@ fun MoveCopyDialog(
                             Icon(
                                 imageVector = Icons.Outlined.ContentCopy,
                                 contentDescription = null,
-                                tint = if (currentAction == MoveCopyAction.COPY) Color.White else Color.Gray,
+                                tint = if (currentAction == MoveCopyAction.COPY) Color.White else colors.textSecondary,
                                 modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Copy",
-                                color = if (currentAction == MoveCopyAction.COPY) Color.White else Color.Gray,
+                                color = if (currentAction == MoveCopyAction.COPY) Color.White else colors.textSecondary,
                                 fontWeight = if (currentAction == MoveCopyAction.COPY) FontWeight.Bold else FontWeight.Normal,
                                 fontSize = 14.sp
                             )
@@ -209,8 +210,8 @@ fun MoveCopyDialog(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF262626),
-                    border = BorderStroke(0.5.dp, Color(0xFF383838))
+                    color = colors.surfaceSecondary,
+                    border = BorderStroke(0.5.dp, colors.cardBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -249,14 +250,14 @@ fun MoveCopyDialog(
                                         Icon(
                                             Icons.Default.Home,
                                             contentDescription = null,
-                                            tint = if (isLast) Color.White else ScannerGreen,
+                                            tint = if (isLast) colors.textPrimary else ScannerGreen,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                     }
                                     Text(
                                         text = crumb.second,
-                                        color = if (isLast) Color.White else ScannerGreen,
+                                        color = if (isLast) colors.textPrimary else ScannerGreen,
                                         fontWeight = if (isLast) FontWeight.Bold else FontWeight.Normal,
                                         fontSize = 13.sp,
                                         maxLines = 1,
@@ -266,7 +267,7 @@ fun MoveCopyDialog(
                                         Icon(
                                             Icons.Default.ChevronRight,
                                             contentDescription = null,
-                                            tint = Color.Gray,
+                                            tint = colors.textSecondary,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -286,7 +287,7 @@ fun MoveCopyDialog(
                 ) {
                     Text(
                         text = if (currentViewingFolderId <= 0L) "FOLDERS IN ROOT" else "SUBFOLDERS IN '${currentFolderName.uppercase()}'",
-                        color = Color.Gray,
+                        color = colors.textSecondary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp,
@@ -323,7 +324,7 @@ fun MoveCopyDialog(
                             .weight(1f)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF242424))
+                            .background(colors.surfaceSecondary)
                             .padding(20.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -331,20 +332,20 @@ fun MoveCopyDialog(
                             Icon(
                                 Icons.Default.FolderOpen,
                                 contentDescription = null,
-                                tint = Color.Gray,
+                                tint = colors.textMuted,
                                 modifier = Modifier.size(40.dp)
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = "No subfolders here",
-                                color = Color.White,
+                                color = colors.textPrimary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Tap 'New Folder' to create one,\nor tap '${if (currentAction == MoveCopyAction.MOVE) "Move Here" else "Copy Here"}' below to put items in '$currentFolderName'.",
-                                color = Color.Gray,
+                                color = colors.textSecondary,
                                 fontSize = 12.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -364,8 +365,8 @@ fun MoveCopyDialog(
                                     .fillMaxWidth()
                                     .clickable { currentViewingFolderId = fwc.folder.id },
                                 shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFF262626),
-                                border = BorderStroke(0.5.dp, Color(0xFF333333))
+                                color = colors.surfaceSecondary,
+                                border = BorderStroke(0.5.dp, colors.cardBorder)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -375,7 +376,7 @@ fun MoveCopyDialog(
                                 ) {
                                     Surface(
                                         shape = CircleShape,
-                                        color = Color(0xFF333333),
+                                        color = colors.surface,
                                         modifier = Modifier.size(38.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
@@ -391,7 +392,7 @@ fun MoveCopyDialog(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = fwc.folder.name,
-                                            color = Color.White,
+                                            color = colors.textPrimary,
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 14.sp
                                         )
@@ -403,14 +404,14 @@ fun MoveCopyDialog(
                                         }
                                         Text(
                                             text = subtitle,
-                                            color = Color.Gray,
+                                            color = colors.textSecondary,
                                             fontSize = 12.sp
                                         )
                                     }
                                     Icon(
                                         Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                         contentDescription = "Open",
-                                        tint = Color.Gray,
+                                        tint = colors.textMuted,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }

@@ -56,6 +56,7 @@ import com.krinry.scancraft.pdf.ui.StudioTool
 import com.krinry.scancraft.pdf.viewer.PdfContinuousViewer
 import com.krinry.scancraft.pdf.viewer.PdfPageCache
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,6 +66,7 @@ fun EditPdfScreen(
     initialPageIndex: Int = 0,
     onNavigateBack: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val app = context.applicationContext as ScanCraftApp
@@ -257,12 +259,12 @@ fun EditPdfScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0D0D0D),
+        containerColor = colors.background,
         topBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF141414))
+                    .background(colors.surface)
                     .statusBarsPadding()
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -271,13 +273,13 @@ fun EditPdfScreen(
                     persistAllAnnotations()
                     onNavigateBack()
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.textPrimary)
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = document?.title ?: "PDF Studio",
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         maxLines = 1
@@ -299,7 +301,7 @@ fun EditPdfScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.Undo,
                         contentDescription = "Undo",
-                        tint = if (canUndo) Color.White else Color.Gray.copy(alpha = 0.35f)
+                        tint = if (canUndo) colors.textPrimary else colors.textMuted
                     )
                 }
 
@@ -312,13 +314,13 @@ fun EditPdfScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.Redo,
                         contentDescription = "Redo",
-                        tint = if (canRedo) Color.White else Color.Gray.copy(alpha = 0.35f)
+                        tint = if (canRedo) colors.textPrimary else colors.textMuted
                     )
                 }
 
                 // Page Manager
                 IconButton(onClick = { showPageManagerSheet = true }) {
-                    Icon(Icons.Outlined.Layers, contentDescription = "Page Manager", tint = Color.White)
+                    Icon(Icons.Outlined.Layers, contentDescription = "Page Manager", tint = colors.textPrimary)
                 }
 
                 // Export Button
@@ -340,7 +342,7 @@ fun EditPdfScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF141414))
+                        .background(colors.surface)
                         .navigationBarsPadding()
                 ) {
                     // Secondary ribbon: palette & stroke size
@@ -360,13 +362,13 @@ fun EditPdfScreen(
                                         val isSel = selectedShapeType == st
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
-                                            color = if (isSel) ScannerGreen.copy(alpha = 0.22f) else Color(0xFF222222),
-                                            border = BorderStroke(1.dp, if (isSel) ScannerGreen else Color.DarkGray),
+                                            color = if (isSel) ScannerGreen.copy(alpha = 0.22f) else colors.surfaceSecondary,
+                                            border = BorderStroke(1.dp, if (isSel) ScannerGreen else colors.cardBorder),
                                             modifier = Modifier.clickable { selectedShapeType = st }
                                         ) {
                                             Text(
                                                 st.label,
-                                                color = if (isSel) ScannerGreen else Color.LightGray,
+                                                color = if (isSel) ScannerGreen else colors.textSecondary,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
@@ -391,13 +393,13 @@ fun EditPdfScreen(
                                             val isSel = selectedFillType == ft
                                             Surface(
                                                 shape = RoundedCornerShape(6.dp),
-                                                color = if (isSel) ScannerGreen.copy(alpha = 0.25f) else Color(0xFF1E1E1E),
-                                                border = BorderStroke(1.dp, if (isSel) ScannerGreen else Color(0xFF333333)),
+                                                color = if (isSel) ScannerGreen.copy(alpha = 0.25f) else colors.surfaceSecondary,
+                                                border = BorderStroke(1.dp, if (isSel) ScannerGreen else colors.cardBorder),
                                                 modifier = Modifier.clickable { selectedFillType = ft }
                                             ) {
                                                 Text(
                                                     lbl,
-                                                    color = if (isSel) ScannerGreen else Color.Gray,
+                                                    color = if (isSel) ScannerGreen else colors.textSecondary,
                                                     fontSize = 10.sp,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                                 )
@@ -415,13 +417,13 @@ fun EditPdfScreen(
                                             val isSel = selectedDashStyle == ds
                                             Surface(
                                                 shape = RoundedCornerShape(6.dp),
-                                                color = if (isSel) ScannerGreen.copy(alpha = 0.25f) else Color(0xFF1E1E1E),
-                                                border = BorderStroke(1.dp, if (isSel) ScannerGreen else Color(0xFF333333)),
+                                                color = if (isSel) ScannerGreen.copy(alpha = 0.25f) else colors.surfaceSecondary,
+                                                border = BorderStroke(1.dp, if (isSel) ScannerGreen else colors.cardBorder),
                                                 modifier = Modifier.clickable { selectedDashStyle = ds }
                                             ) {
                                                 Text(
                                                     lbl,
-                                                    color = if (isSel) ScannerGreen else Color.Gray,
+                                                    color = if (isSel) ScannerGreen else colors.textSecondary,
                                                     fontSize = 10.sp,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                                                 )
@@ -455,14 +457,14 @@ fun EditPdfScreen(
                                                 .size(24.dp)
                                                 .clip(CircleShape)
                                                 .background(c)
-                                                .border(if (isSel) 2.5.dp else 1.dp, if (isSel) Color.White else Color.DarkGray, CircleShape)
+                                                .border(if (isSel) 2.5.dp else 1.dp, if (isSel) colors.textPrimary else colors.cardBorder, CircleShape)
                                                 .clickable { selectedColor = c }
                                         )
                                     }
                                 }
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Alpha", color = Color.Gray, fontSize = 10.sp)
+                                    Text("Alpha", color = colors.textSecondary, fontSize = 10.sp)
                                     Slider(
                                         value = annotationOpacity,
                                         onValueChange = { annotationOpacity = it },
@@ -471,7 +473,7 @@ fun EditPdfScreen(
                                         colors = SliderDefaults.colors(thumbColor = ScannerGreen, activeTrackColor = ScannerGreen)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Size", color = Color.Gray, fontSize = 10.sp)
+                                    Text("Size", color = colors.textSecondary, fontSize = 10.sp)
                                     Slider(
                                         value = strokeWidthNorm * 1000f,
                                         onValueChange = { strokeWidthNorm = it / 1000f },
@@ -482,7 +484,7 @@ fun EditPdfScreen(
                                 }
                             }
                         }
-                        HorizontalDivider(color = Color(0xFF222222), thickness = 0.5.dp)
+                        HorizontalDivider(color = colors.cardBorder, thickness = 0.5.dp)
                     }
 
                     // Main Tool Strip
@@ -532,7 +534,7 @@ fun EditPdfScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFF0D0D0D))
+                .background(colors.background)
         ) {
             if (isLoading) {
                 CircularProgressIndicator(color = ScannerGreen, modifier = Modifier.align(Alignment.Center))
@@ -598,8 +600,8 @@ fun EditPdfScreen(
                     if (zoomScale > 1.05f) {
                         Surface(
                             shape = CircleShape,
-                            color = Color(0xFF222222),
-                            border = BorderStroke(1.dp, Color.DarkGray),
+                            color = colors.surfaceSecondary,
+                            border = BorderStroke(1.dp, colors.cardBorder),
                             modifier = Modifier
                                 .size(40.dp)
                                 .clickable {
@@ -624,8 +626,8 @@ fun EditPdfScreen(
                                 selectedAnnotationPageId = null
                             }
                         },
-                        containerColor = if (isEditMode) ScannerGreen else Color(0xFF263238),
-                        contentColor = Color.White,
+                        containerColor = if (isEditMode) ScannerGreen else colors.surfaceSecondary,
+                        contentColor = if (isEditMode) Color.White else colors.textPrimary,
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.height(44.dp)
                     ) {
@@ -713,19 +715,19 @@ fun EditPdfScreen(
     if (showTextDialog) {
         AlertDialog(
             onDismissRequest = { showTextDialog = false },
-            containerColor = Color(0xFF1E1E1E),
-            title = { Text("Add Text Label", color = Color.White, fontWeight = FontWeight.Bold) },
+            containerColor = colors.surface,
+            title = { Text("Add Text Label", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = textInput,
                     onValueChange = { textInput = it },
-                    placeholder = { Text("Type note here...") },
+                    placeholder = { Text("Type note here...", color = colors.textMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = ScannerGreen,
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedBorderColor = colors.cardBorder,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
                     )
                 )
             },
@@ -755,7 +757,7 @@ fun EditPdfScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showTextDialog = false }) {
-                    Text("Cancel", color = Color.LightGray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             }
         )
@@ -765,40 +767,40 @@ fun EditPdfScreen(
     if (showExportDialog) {
         AlertDialog(
             onDismissRequest = { showExportDialog = false },
-            containerColor = Color(0xFF1C1C1C),
-            title = { Text("Export Document PDF", color = Color.White, fontWeight = FontWeight.Bold) },
+            containerColor = colors.surface,
+            title = { Text("Export Document PDF", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Export Mode Toggle (Standard vs Flattened)
-                    Text("Annotation Format:", color = Color.Gray, fontSize = 12.sp)
+                    Text("Annotation Format:", color = colors.textSecondary, fontSize = 12.sp)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (exportMode == PdfExportMode.FLATTENED_TAMPER_RESISTANT) ScannerGreen.copy(alpha = 0.25f) else Color(0xFF242424),
-                            border = BorderStroke(1.dp, if (exportMode == PdfExportMode.FLATTENED_TAMPER_RESISTANT) ScannerGreen else Color.DarkGray),
+                            color = if (exportMode == PdfExportMode.FLATTENED_TAMPER_RESISTANT) ScannerGreen.copy(alpha = 0.25f) else colors.surfaceSecondary,
+                            border = BorderStroke(1.dp, if (exportMode == PdfExportMode.FLATTENED_TAMPER_RESISTANT) ScannerGreen else colors.cardBorder),
                             modifier = Modifier.weight(1f).clickable { exportMode = PdfExportMode.FLATTENED_TAMPER_RESISTANT }
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
-                                Text("Flattened", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                Text("Tamper-proof vectors", color = Color.Gray, fontSize = 10.sp)
+                                Text("Flattened", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Tamper-proof vectors", color = colors.textSecondary, fontSize = 10.sp)
                             }
                         }
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (exportMode == PdfExportMode.STANDARD_NATIVE_ANNOTATIONS) ScannerGreen.copy(alpha = 0.25f) else Color(0xFF242424),
-                            border = BorderStroke(1.dp, if (exportMode == PdfExportMode.STANDARD_NATIVE_ANNOTATIONS) ScannerGreen else Color.DarkGray),
+                            color = if (exportMode == PdfExportMode.STANDARD_NATIVE_ANNOTATIONS) ScannerGreen.copy(alpha = 0.25f) else colors.surfaceSecondary,
+                            border = BorderStroke(1.dp, if (exportMode == PdfExportMode.STANDARD_NATIVE_ANNOTATIONS) ScannerGreen else colors.cardBorder),
                             modifier = Modifier.weight(1f).clickable { exportMode = PdfExportMode.STANDARD_NATIVE_ANNOTATIONS }
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
-                                Text("Standard", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                Text("ISO 32000 editable", color = Color.Gray, fontSize = 10.sp)
+                                Text("Standard", color = colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("ISO 32000 editable", color = colors.textSecondary, fontSize = 10.sp)
                             }
                         }
                     }
@@ -807,14 +809,14 @@ fun EditPdfScreen(
                     OutlinedTextField(
                         value = exportWatermark,
                         onValueChange = { exportWatermark = it },
-                        placeholder = { Text("Watermark text (Optional)", color = Color.Gray, fontSize = 12.sp) },
+                        placeholder = { Text("Watermark text (Optional)", color = colors.textMuted, fontSize = 12.sp) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = ScannerGreen,
-                            unfocusedBorderColor = Color.DarkGray,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            unfocusedBorderColor = colors.cardBorder,
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary
                         )
                     )
 
@@ -822,14 +824,14 @@ fun EditPdfScreen(
                     OutlinedTextField(
                         value = exportPassword,
                         onValueChange = { exportPassword = it },
-                        placeholder = { Text("Password protection (Optional)", color = Color.Gray, fontSize = 12.sp) },
+                        placeholder = { Text("Password protection (Optional)", color = colors.textMuted, fontSize = 12.sp) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = ScannerGreen,
-                            unfocusedBorderColor = Color.DarkGray,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            unfocusedBorderColor = colors.cardBorder,
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary
                         )
                     )
                 }
@@ -844,7 +846,7 @@ fun EditPdfScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showExportDialog = false }) {
-                    Text("Cancel", color = Color.LightGray)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             }
         )
@@ -858,6 +860,7 @@ private fun StudioToolButton(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -869,14 +872,14 @@ private fun StudioToolButton(
         Icon(
             icon,
             contentDescription = label,
-            tint = if (isActive) ScannerGreen else Color.LightGray,
+            tint = if (isActive) ScannerGreen else colors.textSecondary,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
             fontSize = 10.sp,
-            color = if (isActive) ScannerGreen else Color.LightGray,
+            color = if (isActive) ScannerGreen else colors.textSecondary,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
     }

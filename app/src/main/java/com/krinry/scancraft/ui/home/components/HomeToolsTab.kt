@@ -28,10 +28,12 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 
 @Composable
 fun HomeToolsTab(
@@ -49,10 +51,11 @@ fun HomeToolsTab(
     onPdfPassword: () -> Unit,
     onPageReorder: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(colors.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
@@ -172,9 +175,10 @@ fun HomeToolsTab(
 
 @Composable
 fun SectionHeader(title: String) {
+    val colors = ScannerTheme.colors
     Text(
         text = title,
-        color = Color.White,
+        color = colors.textPrimary,
         fontWeight = FontWeight.Bold,
         fontSize = 17.sp
     )
@@ -187,6 +191,7 @@ fun ShortcutTile(
     onClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Column(
         modifier = modifier.clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -196,8 +201,8 @@ fun ShortcutTile(
                 .fillMaxWidth()
                 .aspectRatio(1f)
                 .clip(RoundedCornerShape(12.dp)),
-            color = Color(0xFFF7F7F7),
-            border = BorderStroke(0.5.dp, Color(0xFFE0E0E0))
+            color = colors.surface,
+            border = BorderStroke(0.5.dp, colors.cardBorder)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -209,10 +214,12 @@ fun ShortcutTile(
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = title,
-            color = Color.White,
+            color = colors.textPrimary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

@@ -717,7 +717,7 @@ fun HomeScreen(
     if (showMoreMenu) {
         ModalBottomSheet(
             onDismissRequest = { showMoreMenu = false },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         ) {
             Column(
                 modifier = Modifier
@@ -727,13 +727,13 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "Batch Options (${selectedDocIds.size} selected)",
-                    color = Color.White,
+                    color = colors.textPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
                 Spacer(modifier = Modifier.height(14.dp))
                 ListItem(
-                    headlineContent = { Text("Export as PDF", color = Color.White) },
+                    headlineContent = { Text("Export as PDF", color = colors.textPrimary) },
                     leadingContent = { Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = colors.primary) },
                     modifier = Modifier.clickable {
                         showMoreMenu = false
@@ -742,8 +742,8 @@ fun HomeScreen(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
                 ListItem(
-                    headlineContent = { Text("Deselect All", color = Color.White) },
-                    leadingContent = { Icon(Icons.Default.Close, contentDescription = null, tint = Color.Gray) },
+                    headlineContent = { Text("Deselect All", color = colors.textPrimary) },
+                    leadingContent = { Icon(Icons.Default.Close, contentDescription = null, tint = colors.textSecondary) },
                     modifier = Modifier.clickable {
                         showMoreMenu = false
                         viewModel.clearSelection()

@@ -51,8 +51,10 @@ import com.krinry.scancraft.ScanCraftApp
 import com.krinry.scancraft.data.model.Document
 import com.krinry.scancraft.data.model.Page
 import com.krinry.scancraft.ui.crop.CropScreen
+import com.krinry.scancraft.ui.crop.toCropItem
 import com.krinry.scancraft.ui.editor.UniversalImageEditStudio
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import com.krinry.scancraft.ui.viewer.components.ViewerBottomBar
 import com.krinry.scancraft.ui.viewer.dialogs.SignatureWatermarkSheet
 import com.krinry.scancraft.ui.viewer.dialogs.ViewerMoreMenuSheet
@@ -79,6 +81,7 @@ fun PageViewerScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val colors = ScannerTheme.colors
 
     var pages by remember { mutableStateOf<List<Page>>(emptyList()) }
     var document by remember { mutableStateOf<Document?>(null) }
@@ -121,7 +124,7 @@ fun PageViewerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(colors.background),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = ScannerGreen)
@@ -190,7 +193,7 @@ fun PageViewerScreen(
                 title = {
                     Text(
                         text = docTitle,
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
                         maxLines = 1,
@@ -202,27 +205,27 @@ fun PageViewerScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = colors.textPrimary
                         )
                     }
                 },
                 actions = {
                     // Top-right Page Counter Badge (e.g. "1/19", "5/50")
                     Surface(
-                        color = Color(0xFF262626),
+                        color = colors.surfaceSecondary,
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.padding(end = 12.dp)
                     ) {
                         Text(
                             text = "${pagerState.currentPage + 1}/${pages.size}",
-                            color = Color.White,
+                            color = colors.textPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF101010))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface)
             )
         },
         bottomBar = {
@@ -239,7 +242,7 @@ fun PageViewerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color.Black)
+                .background(colors.background)
                 .onGloballyPositioned { coords ->
                     viewWidth = coords.size.width.toFloat()
                     viewHeight = coords.size.height.toFloat()
@@ -356,7 +359,7 @@ fun PageViewerScreen(
                             Text(
                                 text = if (!hasStoragePerm) "All Files Access Required" else "File Missing or Unavailable",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = Color.White,
+                                color = colors.textPrimary,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
@@ -367,7 +370,7 @@ fun PageViewerScreen(
                                     "The file for this page could not be located in storage."
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFFCCCCCC),
+                                color = colors.textSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                             if (!hasStoragePerm) {
@@ -393,8 +396,9 @@ fun PageViewerScreen(
             // Left Navigation Chevron Arrow (shown when not on first page and not zoomed in)
             if (pagerState.currentPage > 0 && scale <= 1.05f) {
                 Surface(
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = colors.surface.copy(alpha = 0.85f),
                     shape = CircleShape,
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .padding(start = 12.dp)
@@ -409,7 +413,7 @@ fun PageViewerScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Previous Page",
-                            tint = Color.White,
+                            tint = colors.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -419,8 +423,9 @@ fun PageViewerScreen(
             // Right Navigation Chevron Arrow (shown when not on last page and not zoomed in)
             if (pagerState.currentPage < pages.size - 1 && scale <= 1.05f) {
                 Surface(
-                    color = Color.Black.copy(alpha = 0.5f),
+                    color = colors.surface.copy(alpha = 0.85f),
                     shape = CircleShape,
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .padding(end = 12.dp)
@@ -435,7 +440,7 @@ fun PageViewerScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Next Page",
-                            tint = Color.White,
+                            tint = colors.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -446,7 +451,7 @@ fun PageViewerScreen(
             if (scale > 1.05f) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color.Black.copy(alpha = 0.75f),
+                    color = colors.surface.copy(alpha = 0.85f),
                     border = BorderStroke(1.dp, ScannerGreen),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -469,7 +474,7 @@ fun PageViewerScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Reset",
-                            color = Color.White,
+                            color = colors.textPrimary,
                             fontSize = 12.sp
                         )
                     }
@@ -497,7 +502,13 @@ fun PageViewerScreen(
             onDismissRequest = { showCropScreen = false },
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
         ) {
+            val cropItems = remember(pages) {
+                pages.map { it.toCropItem() }
+            }
+            val initialIdx = pagerState.currentPage.coerceIn(0, (cropItems.size - 1).coerceAtLeast(0))
             CropScreen(
+                items = cropItems,
+                initialIndex = initialIdx,
                 page = activePage,
                 onClose = { showCropScreen = false },
                 onPageUpdated = {
@@ -564,13 +575,14 @@ private fun ViewerZoomScrubber(
     var isDragging by remember { mutableStateOf(false) }
     val currentScale by rememberUpdatedState(scale)
     val currentOnScaleChange by rememberUpdatedState(onScaleChange)
+    val colors = ScannerTheme.colors
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = if (isDragging) Color(0xFF1E3326) else Color.Black.copy(alpha = 0.8f),
+        color = if (isDragging) colors.primaryContainer else colors.surface.copy(alpha = 0.9f),
         border = BorderStroke(
             width = if (isDragging || scale > 1.05f) 1.5.dp else 1.dp,
-            color = if (isDragging || scale > 1.05f) ScannerGreen else Color(0xFF555555)
+            color = if (isDragging || scale > 1.05f) ScannerGreen else colors.cardBorder
         ),
         shadowElevation = 8.dp,
         modifier = modifier
@@ -634,13 +646,13 @@ private fun ViewerZoomScrubber(
             Icon(
                 imageVector = Icons.Outlined.ZoomIn,
                 contentDescription = null,
-                tint = if (scale > 1.05f) ScannerGreen else Color.White,
+                tint = if (scale > 1.05f) ScannerGreen else colors.textPrimary,
                 modifier = Modifier.size(17.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "Zoom ${(scale * 10).toInt() / 10f}x",
-                color = if (scale > 1.05f) ScannerGreen else Color.White,
+                color = if (scale > 1.05f) ScannerGreen else colors.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
             )
@@ -648,14 +660,15 @@ private fun ViewerZoomScrubber(
                 Spacer(modifier = Modifier.width(8.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFF2A2A2A),
+                    color = colors.surfaceSecondary,
+                    border = BorderStroke(0.5.dp, colors.cardBorder),
                     modifier = Modifier.clickable {
                         onScaleChange(1f)
                     }
                 ) {
                     Text(
                         text = "1x",
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

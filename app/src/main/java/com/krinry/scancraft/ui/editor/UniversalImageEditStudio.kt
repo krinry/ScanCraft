@@ -59,6 +59,7 @@ import com.krinry.scancraft.cv.NativeScannerEngine
 import com.krinry.scancraft.data.model.Page
 import com.krinry.scancraft.data.repository.ScannerRepository
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.io.File
 
 /**
@@ -116,6 +117,7 @@ fun UniversalImageEditStudio(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val colors = ScannerTheme.colors
 
     var activeTool by remember { mutableStateOf(UniversalEditToolMode.PEN) }
     var selectedColor by remember { mutableStateOf(Color(0xFFE53935)) } // Default red
@@ -365,7 +367,7 @@ fun UniversalImageEditStudio(
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color.Black
+            color = colors.background
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top Header Bar
@@ -378,7 +380,7 @@ fun UniversalImageEditStudio(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color.White)
+                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = colors.textPrimary)
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -397,7 +399,7 @@ fun UniversalImageEditStudio(
                             Icon(
                                 Icons.AutoMirrored.Filled.Undo,
                                 contentDescription = "Undo",
-                                tint = if (paths.isNotEmpty() || textAnnotations.isNotEmpty()) Color.White else Color(0xFF555555)
+                                tint = if (paths.isNotEmpty() || textAnnotations.isNotEmpty()) colors.textPrimary else colors.textMuted
                             )
                         }
 
@@ -414,13 +416,13 @@ fun UniversalImageEditStudio(
                             Icon(
                                 Icons.AutoMirrored.Filled.Redo,
                                 contentDescription = "Redo",
-                                tint = if (undonePaths.isNotEmpty()) Color.White else Color(0xFF555555)
+                                tint = if (undonePaths.isNotEmpty()) colors.textPrimary else colors.textMuted
                             )
                         }
 
                         // Rotate 90 CW
                         IconButton(onClick = { rotationStep = (rotationStep + 1) % 4 }) {
-                            Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "Rotate", tint = colors.textPrimary)
                         }
                     }
 
@@ -843,7 +845,7 @@ fun UniversalImageEditStudio(
                                         onClick = { isEyedropperActive = false },
                                         modifier = Modifier.size(28.dp)
                                     ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color(0xFFAAAAAA), modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.Close, contentDescription = "Cancel", tint = colors.textSecondary, modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }
@@ -872,7 +874,7 @@ fun UniversalImageEditStudio(
 
                 // Bottom Tools Selector & Sub-options
                 Surface(
-                    color = Color(0xFF141414),
+                    color = colors.surface,
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -896,7 +898,13 @@ fun UniversalImageEditStudio(
                                                 .background(color)
                                                 .border(
                                                     width = if (isSelected) 3.dp else 1.dp,
-                                                    color = if (isSelected) ScannerGreen else Color(0xFF444444),
+                                                    color = if (isSelected) {
+                                                        ScannerGreen
+                                                    } else if (color == Color.Black) {
+                                                        colors.textSecondary.copy(alpha = 0.5f)
+                                                    } else {
+                                                        colors.cardBorder
+                                                    },
                                                     shape = CircleShape
                                                 )
                                                 .clickable { selectedColor = color }
@@ -909,7 +917,7 @@ fun UniversalImageEditStudio(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Size", color = Color(0xFFAAAAAA), fontSize = 11.sp)
+                                    Text("Size", color = colors.textSecondary, fontSize = 11.sp)
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Slider(
                                         value = if (activeTool == UniversalEditToolMode.HIGHLIGHTER) highlighterWidth else strokeWidth,
@@ -920,7 +928,7 @@ fun UniversalImageEditStudio(
                                         colors = SliderDefaults.colors(
                                             thumbColor = ScannerGreen,
                                             activeTrackColor = ScannerGreen,
-                                            inactiveTrackColor = Color(0xFF333333)
+                                            inactiveTrackColor = colors.cardBorder
                                         ),
                                         modifier = Modifier.height(28.dp)
                                     )
@@ -1054,7 +1062,7 @@ fun UniversalImageEditStudio(
                                         ) {
                                             Text(
                                                 text = if (smudgeShape == UniversalSmudgeShape.ERASER) "Eraser Size" else "Brush Size",
-                                                color = Color(0xFFAAAAAA),
+                                                color = colors.textSecondary,
                                                 fontSize = 11.sp
                                             )
                                             Spacer(modifier = Modifier.width(10.dp))
@@ -1065,7 +1073,7 @@ fun UniversalImageEditStudio(
                                                 colors = SliderDefaults.colors(
                                                     thumbColor = ScannerGreen,
                                                     activeTrackColor = ScannerGreen,
-                                                    inactiveTrackColor = Color(0xFF333333)
+                                                    inactiveTrackColor = colors.cardBorder
                                                 ),
                                                 modifier = Modifier.height(28.dp)
                                             )
@@ -1079,7 +1087,7 @@ fun UniversalImageEditStudio(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Tap on the image to place text", color = Color(0xFFAAAAAA), fontSize = 12.sp)
+                                    Text("Tap on the image to place text", color = colors.textSecondary, fontSize = 12.sp)
                                     Button(
                                         onClick = { showTextInputDialog = true },
                                         colors = ButtonDefaults.buttonColors(containerColor = ScannerGreen),
@@ -1093,7 +1101,7 @@ fun UniversalImageEditStudio(
                             UniversalEditToolMode.REDACT -> {
                                 Text(
                                     text = "Drag a box on the image to blackout sensitive information",
-                                    color = Color(0xFFAAAAAA),
+                                    color = colors.textSecondary,
                                     fontSize = 12.sp,
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                                 )
@@ -1104,7 +1112,7 @@ fun UniversalImageEditStudio(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("Brightness: $brightness", color = Color(0xFFAAAAAA), fontSize = 11.sp)
+                                        Text("Brightness: $brightness", color = colors.textSecondary, fontSize = 11.sp)
                                         TextButton(onClick = { brightness = 0; contrast = 0 }) {
                                             Text("Reset", color = ScannerGreen, fontSize = 11.sp)
                                         }
@@ -1116,7 +1124,7 @@ fun UniversalImageEditStudio(
                                         colors = SliderDefaults.colors(thumbColor = ScannerGreen, activeTrackColor = ScannerGreen),
                                         modifier = Modifier.height(26.dp)
                                     )
-                                    Text("Contrast: $contrast", color = Color(0xFFAAAAAA), fontSize = 11.sp)
+                                    Text("Contrast: $contrast", color = colors.textSecondary, fontSize = 11.sp)
                                     Slider(
                                         value = contrast.toFloat(),
                                         onValueChange = { contrast = it.toInt() },
@@ -1128,7 +1136,7 @@ fun UniversalImageEditStudio(
                             }
                         }
 
-                        HorizontalDivider(color = Color(0xFF222222), thickness = 0.8.dp, modifier = Modifier.padding(vertical = 4.dp))
+                        HorizontalDivider(color = colors.cardBorder, thickness = 0.8.dp, modifier = Modifier.padding(vertical = 4.dp))
 
                         // Tool Switcher Icons Row
                         Row(
@@ -1218,7 +1226,7 @@ fun UniversalImageEditStudio(
             },
             dismissButton = {
                 TextButton(onClick = { showTextInputDialog = false }) {
-                    Text("Cancel", color = Color(0xFFAAAAAA))
+                    Text("Cancel", color = colors.textSecondary)
                 }
             }
         )
@@ -1232,6 +1240,7 @@ private fun UniversalToolTabItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = ScannerTheme.colors
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -1242,13 +1251,13 @@ private fun UniversalToolTabItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isSelected) ScannerGreen else Color(0xFFBBBBBB),
+            tint = if (isSelected) ScannerGreen else colors.textSecondary,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
-            color = if (isSelected) ScannerGreen else Color(0xFFBBBBBB),
+            color = if (isSelected) ScannerGreen else colors.textSecondary,
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )

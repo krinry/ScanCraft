@@ -3,6 +3,7 @@ package com.krinry.scancraft.ui.signature
 import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint as AndroidPaint
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 
 data class SignaturePath(
     val path: Path,
@@ -46,21 +48,24 @@ fun SignatureDialog(
     onDismiss: () -> Unit,
     onSignatureCaptured: (Bitmap) -> Unit
 ) {
+    val colors = ScannerTheme.colors
     val paths = remember { mutableStateListOf<SignaturePath>() }
     var currentPoints = remember { mutableStateListOf<Offset>() }
-    var selectedColor by remember { mutableStateOf(Color.Black) }
+    val defaultInk = Color(0xFF111111)
+    var selectedColor by remember { mutableStateOf(defaultInk) }
     val strokeWidth = 8f
 
     val inkColors = listOf(
-        Color(0xFF111111), // Classic Black
-        Color(0xFF0D47A1), // Official Blue
-        Color(0xFFB71C1C)  // Stamp Red
+        Color(0xFF111111), // Midnight Black
+        Color(0xFF2979FF), // Official Blue
+        Color(0xFFE53935)  // Stamp Red
     )
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = colors.surface),
+            border = BorderStroke(0.5.dp, colors.cardBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
@@ -80,10 +85,10 @@ fun SignatureDialog(
                         text = "Add Digital Signature",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF1A1A1A)
+                        color = colors.textPrimary
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Clear, contentDescription = "Close", tint = Color.Gray)
+                        Icon(Icons.Default.Clear, contentDescription = "Close", tint = colors.textSecondary)
                     }
                 }
 
@@ -91,7 +96,7 @@ fun SignatureDialog(
                 Text(
                     text = "Sign with your finger inside the box below",
                     fontSize = 12.sp,
-                    color = Color.Gray,
+                    color = colors.textSecondary,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -103,8 +108,8 @@ fun SignatureDialog(
                         .fillMaxWidth()
                         .height(200.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF9F9F9))
-                        .border(1.5.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                        .border(1.5.dp, colors.cardBorder, RoundedCornerShape(12.dp))
                 ) {
                     Canvas(
                         modifier = Modifier
@@ -143,7 +148,7 @@ fun SignatureDialog(
                     ) {
                         // Baseline guide line
                         drawLine(
-                            color = Color(0xFFDDDDDD),
+                            color = Color(0xFFE0E0E0),
                             start = Offset(20f, size.height * 0.75f),
                             end = Offset(size.width - 20f, size.height * 0.75f),
                             strokeWidth = 1.5f
@@ -185,7 +190,7 @@ fun SignatureDialog(
                     if (paths.isEmpty() && currentPoints.isEmpty()) {
                         Text(
                             text = "Sign here",
-                            color = Color(0xFFCCCCCC),
+                            color = Color(0xFFAAAAAA),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.align(Alignment.Center)
@@ -212,7 +217,7 @@ fun SignatureDialog(
                                     .background(inkColor)
                                     .border(
                                         width = if (isSelected) 3.dp else 1.dp,
-                                        color = if (isSelected) ScannerGreen else Color.LightGray,
+                                        color = if (isSelected) ScannerGreen else colors.cardBorder,
                                         shape = CircleShape
                                     )
                                     .clickable { selectedColor = inkColor },
@@ -222,7 +227,7 @@ fun SignatureDialog(
                                     Icon(
                                         Icons.Default.Check,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = if (inkColor == Color.White) Color.Black else Color.White,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -239,9 +244,9 @@ fun SignatureDialog(
                         shape = RoundedCornerShape(16.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Delete, contentDescription = "Clear", tint = colors.textSecondary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Clear", color = Color.Gray, fontSize = 13.sp)
+                        Text("Clear", color = colors.textSecondary, fontSize = 13.sp)
                     }
                 }
 

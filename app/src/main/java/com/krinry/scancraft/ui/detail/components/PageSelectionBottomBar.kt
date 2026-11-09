@@ -1,5 +1,6 @@
 package com.krinry.scancraft.ui.detail.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.krinry.scancraft.ui.theme.ScannerTheme
@@ -34,7 +36,8 @@ fun PageSelectionBottomBar(
     val hasSelection = selectedCount > 0
 
     Surface(
-        color = Color(0xFF121212),
+        color = colors.surface,
+        border = BorderStroke(0.5.dp, colors.cardBorder),
         modifier = Modifier.fillMaxWidth(),
         tonalElevation = 8.dp,
         shadowElevation = 16.dp
@@ -52,7 +55,8 @@ fun PageSelectionBottomBar(
                 icon = Icons.Outlined.Share,
                 label = "Share",
                 enabled = hasSelection,
-                tint = if (hasSelection) colors.textPrimary else colors.textSecondary.copy(alpha = 0.4f),
+                modifier = Modifier.weight(1f),
+                tint = if (hasSelection) colors.textPrimary else colors.textMuted.copy(alpha = 0.4f),
                 onClick = onShare
             )
 
@@ -61,7 +65,8 @@ fun PageSelectionBottomBar(
                 icon = Icons.AutoMirrored.Outlined.DriveFileMove,
                 label = "Move",
                 enabled = hasSelection,
-                tint = if (hasSelection) colors.textPrimary else colors.textSecondary.copy(alpha = 0.4f),
+                modifier = Modifier.weight(1f),
+                tint = if (hasSelection) colors.textPrimary else colors.textMuted.copy(alpha = 0.4f),
                 onClick = onMove
             )
 
@@ -70,7 +75,8 @@ fun PageSelectionBottomBar(
                 icon = Icons.Outlined.ContentCopy,
                 label = "Copy",
                 enabled = hasSelection,
-                tint = if (hasSelection) colors.textPrimary else colors.textSecondary.copy(alpha = 0.4f),
+                modifier = Modifier.weight(1f),
+                tint = if (hasSelection) colors.textPrimary else colors.textMuted.copy(alpha = 0.4f),
                 onClick = onCopy
             )
 
@@ -80,7 +86,8 @@ fun PageSelectionBottomBar(
                     icon = Icons.Default.FormatListNumbered,
                     label = "Position",
                     enabled = hasSelection,
-                    tint = if (hasSelection) colors.textPrimary else colors.textSecondary.copy(alpha = 0.4f),
+                    modifier = Modifier.weight(1f),
+                    tint = if (hasSelection) colors.textPrimary else colors.textMuted.copy(alpha = 0.4f),
                     onClick = onSetPosition
                 )
             }
@@ -90,6 +97,7 @@ fun PageSelectionBottomBar(
                 icon = Icons.Outlined.Delete,
                 label = "Delete",
                 enabled = hasSelection,
+                modifier = Modifier.weight(1f),
                 tint = if (hasSelection) Color(0xFFFF5252) else Color(0xFFFF5252).copy(alpha = 0.35f),
                 onClick = onDelete
             )
@@ -103,13 +111,14 @@ private fun PageActionButton(
     label: String,
     enabled: Boolean,
     tint: Color,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
     ) {
         Icon(
             icon,
@@ -122,7 +131,9 @@ private fun PageActionButton(
             text = label,
             fontSize = 11.sp,
             color = tint,
-            fontWeight = if (enabled) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (enabled) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

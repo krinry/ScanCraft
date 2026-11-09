@@ -69,6 +69,7 @@ import com.krinry.scancraft.data.repository.ScannerRepository
 import com.krinry.scancraft.data.repository.SettingsManager
 import com.krinry.scancraft.ui.crop.CropScreen
 import com.krinry.scancraft.ui.theme.ScannerGreen
+import com.krinry.scancraft.ui.theme.ScannerTheme
 import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
@@ -84,6 +85,7 @@ fun CameraScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
+    val colors = ScannerTheme.colors
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -278,11 +280,11 @@ fun CameraScreen(
     if (showDraftDialog) {
         AlertDialog(
             onDismissRequest = { showDraftDialog = false },
-            title = { Text("Save Scans as Draft?", fontWeight = FontWeight.Bold, color = Color.White) },
+            title = { Text("Save Scans as Draft?", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
             text = {
                 Text(
                     "You have ${batchQueue.size} scanned page(s). Save them as a draft document so they appear in Home?",
-                    color = Color.LightGray
+                    color = colors.textSecondary
                 )
             },
             confirmButton = {
@@ -313,11 +315,11 @@ fun CameraScreen(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = { showDraftDialog = false }) {
-                        Text("Keep Scanning", color = Color.White)
+                        Text("Keep Scanning", color = colors.textSecondary)
                     }
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -325,8 +327,8 @@ fun CameraScreen(
     if (showDiscardIdDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardIdDialog = false },
-            title = { Text("Discard Front Side?", fontWeight = FontWeight.Bold, color = Color.White) },
-            text = { Text("Discard front side and exit?", color = Color.LightGray) },
+            title = { Text("Discard Front Side?", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+            text = { Text("Discard front side and exit?", color = colors.textSecondary) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -341,10 +343,10 @@ fun CameraScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardIdDialog = false }) {
-                    Text("Cancel", color = Color.White)
+                    Text("Cancel", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -352,7 +354,7 @@ fun CameraScreen(
     if (ocrResultText != null) {
         AlertDialog(
             onDismissRequest = { ocrResultText = null },
-            title = { Text("Extracted Text (OCR)", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Extracted Text (OCR)", color = colors.textPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Box(
                     modifier = Modifier
@@ -362,7 +364,7 @@ fun CameraScreen(
                 ) {
                     Text(
                         text = if (ocrResultText!!.isBlank()) "No text detected in this photo." else ocrResultText!!,
-                        color = Color.White,
+                        color = colors.textPrimary,
                         fontSize = 14.sp
                     )
                 }
@@ -382,10 +384,10 @@ fun CameraScreen(
             },
             dismissButton = {
                 TextButton(onClick = { ocrResultText = null }) {
-                    Text("Dismiss", color = Color.LightGray)
+                    Text("Dismiss", color = colors.textSecondary)
                 }
             },
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = colors.surface
         )
     }
 
@@ -702,8 +704,8 @@ fun CameraScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 10.dp, vertical = 4.dp)
-                        .background(Color(0xFF141414), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFF2C2C2C), RoundedCornerShape(12.dp))
+                        .background(colors.surface, RoundedCornerShape(12.dp))
+                        .border(1.dp, colors.cardBorder, RoundedCornerShape(12.dp))
                         .padding(vertical = 8.dp)
                 ) {
                     Row(
@@ -723,7 +725,7 @@ fun CameraScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Filter: ${EnhanceMode.fromId(selectedFilter).displayName}",
-                                color = Color.White,
+                                color = colors.textPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -736,7 +738,7 @@ fun CameraScreen(
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color.LightGray,
+                                tint = colors.textSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -764,21 +766,21 @@ fun CameraScreen(
                                     modifier = Modifier
                                         .size(width = 54.dp, height = 64.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelected) ScannerGreen.copy(alpha = 0.25f) else Color(0xFF222222))
+                                        .background(if (isSelected) ScannerGreen.copy(alpha = 0.25f) else colors.surfaceSecondary)
                                         .border(
                                             width = if (isSelected) 2.dp else 0.75.dp,
-                                            color = if (isSelected) ScannerGreen else Color(0xFF383838),
+                                            color = if (isSelected) ScannerGreen else colors.cardBorder,
                                             shape = RoundedCornerShape(8.dp)
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = if (isSelected) ScannerGreen else Color(0xFF333333)
+                                        color = if (isSelected) ScannerGreen else colors.surfaceSecondary
                                     ) {
                                         Text(
                                             text = mode.shortCode,
-                                            color = Color.White,
+                                            color = if (isSelected) Color.White else colors.textPrimary,
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -788,7 +790,7 @@ fun CameraScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = mode.displayName,
-                                    color = if (isSelected) ScannerGreen else Color.LightGray,
+                                    color = if (isSelected) ScannerGreen else colors.textSecondary,
                                     fontSize = 10.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     maxLines = 1
@@ -840,8 +842,8 @@ fun CameraScreen(
             if (currentMode == CaptureMode.DOCUMENT) {
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFF1E1E1E),
-                    border = BorderStroke(1.dp, Color(0xFF333333)),
+                    color = colors.surface,
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     modifier = Modifier.padding(bottom = 10.dp)
                 ) {
                     Row(
@@ -858,7 +860,7 @@ fun CameraScreen(
                         ) {
                             Text(
                                 text = "Single",
-                                color = if (cropAfterScan) Color.White else Color.LightGray,
+                                color = if (cropAfterScan) Color.White else colors.textSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = if (cropAfterScan) FontWeight.Bold else FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
@@ -875,7 +877,7 @@ fun CameraScreen(
                         ) {
                             Text(
                                 text = "Batch",
-                                color = if (!cropAfterScan) Color.White else Color.LightGray,
+                                color = if (!cropAfterScan) Color.White else colors.textSecondary,
                                 fontSize = 11.sp,
                                 fontWeight = if (!cropAfterScan) FontWeight.Bold else FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
@@ -1258,7 +1260,7 @@ fun CameraScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) { /* Consume touches inside side sheet */ },
-                    color = Color(0xFF181818),
+                    color = colors.surface,
                     tonalElevation = 8.dp,
                     shadowElevation = 16.dp,
                     shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
@@ -1280,7 +1282,7 @@ fun CameraScreen(
                         ) {
                             Text(
                                 text = "Scan Settings",
-                                color = Color.White,
+                                color = colors.textPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
                             )
@@ -1291,13 +1293,13 @@ fun CameraScreen(
                                 Icon(
                                     Icons.Default.Close,
                                     contentDescription = "Close",
-                                    tint = Color.White,
+                                    tint = colors.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        HorizontalDivider(color = Color(0xFF282828))
+                        HorizontalDivider(color = colors.cardBorder)
 
                         // 1. Image Quality Slider Section
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1308,7 +1310,7 @@ fun CameraScreen(
                             ) {
                                 Text(
                                     text = "Capture Quality",
-                                    color = Color.White,
+                                    color = colors.textPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 15.sp
                                 )
@@ -1329,7 +1331,7 @@ fun CameraScreen(
 
                             Text(
                                 text = qualityMode.description,
-                                color = Color.LightGray,
+                                color = colors.textSecondary,
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp
                             )
@@ -1353,9 +1355,9 @@ fun CameraScreen(
                                 colors = SliderDefaults.colors(
                                     thumbColor = ScannerGreen,
                                     activeTrackColor = ScannerGreen,
-                                    inactiveTrackColor = Color(0xFF383838),
-                                    activeTickColor = Color.White,
-                                    inactiveTickColor = Color.Gray
+                                    inactiveTrackColor = colors.cardBorder,
+                                    activeTickColor = colors.surface,
+                                    inactiveTickColor = colors.textMuted
                                 )
                             )
 
@@ -1365,26 +1367,26 @@ fun CameraScreen(
                             ) {
                                 Text(
                                     "SD\n1080p",
-                                    color = if (qualityMode == QualityMode.SD) ScannerGreen else Color.Gray,
+                                    color = if (qualityMode == QualityMode.SD) ScannerGreen else colors.textMuted,
                                     fontSize = 11.sp,
                                     textAlign = TextAlign.Center
                                 )
                                 Text(
                                     "HD\nBalanced",
-                                    color = if (qualityMode == QualityMode.HD) ScannerGreen else Color.Gray,
+                                    color = if (qualityMode == QualityMode.HD) ScannerGreen else colors.textMuted,
                                     fontSize = 11.sp,
                                     textAlign = TextAlign.Center
                                 )
                                 Text(
                                     "UHD\nMax Sensor",
-                                    color = if (qualityMode == QualityMode.UHD) ScannerGreen else Color.Gray,
+                                    color = if (qualityMode == QualityMode.UHD) ScannerGreen else colors.textMuted,
                                     fontSize = 11.sp,
                                     textAlign = TextAlign.Center
                                 )
                             }
                         }
 
-                        HorizontalDivider(color = Color(0xFF282828))
+                        HorizontalDivider(color = colors.cardBorder)
 
                         // 2. Crop After Scan Switch
                         Row(
@@ -1395,13 +1397,13 @@ fun CameraScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Crop after each scan",
-                                    color = Color.White,
+                                    color = colors.textPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "Open manual crop editor after every photo",
-                                    color = Color.Gray,
+                                    color = colors.textSecondary,
                                     fontSize = 11.sp
                                 )
                             }
@@ -1410,12 +1412,14 @@ fun CameraScreen(
                                 onCheckedChange = { viewModel.setCropAfterScan(it) },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = ScannerGreen
+                                    checkedTrackColor = ScannerGreen,
+                                    uncheckedThumbColor = colors.textSecondary,
+                                    uncheckedTrackColor = colors.surfaceSecondary
                                 )
                             )
                         }
 
-                        HorizontalDivider(color = Color(0xFF282828))
+                        HorizontalDivider(color = colors.cardBorder)
 
                         // 3. Auto Crop Switch
                         Row(
@@ -1426,13 +1430,13 @@ fun CameraScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Auto crop images",
-                                    color = Color.White,
+                                    color = colors.textPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "Automatically detect document corners and perspective warp",
-                                    color = Color.Gray,
+                                    color = colors.textSecondary,
                                     fontSize = 11.sp
                                 )
                             }
@@ -1441,17 +1445,20 @@ fun CameraScreen(
                                 onCheckedChange = { viewModel.setAutoCropEnabled(it) },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = ScannerGreen
+                                    checkedTrackColor = ScannerGreen,
+                                    uncheckedThumbColor = colors.textSecondary,
+                                    uncheckedTrackColor = colors.surfaceSecondary
                                 )
                             )
                         }
 
-                        HorizontalDivider(color = Color(0xFF282828))
+                        HorizontalDivider(color = colors.cardBorder)
 
                         // 4. Privacy & Hardware Information
                         Surface(
                             shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF222222),
+                            color = colors.surfaceSecondary,
+                            border = BorderStroke(1.dp, colors.cardBorder),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -1466,7 +1473,7 @@ fun CameraScreen(
                                 )
                                 Text(
                                     text = "Scans and image processing never leave your device. Zero telemetry, zero cloud tracking.",
-                                    color = Color.Gray,
+                                    color = colors.textSecondary,
                                     fontSize = 11.sp,
                                     lineHeight = 15.sp
                                 )
@@ -1484,7 +1491,7 @@ fun CameraScreen(
                 batchQueue = batchQueue,
                 onRotateItem = { id, clockwise -> viewModel.rotateBatchItem(id, clockwise) },
                 onRemoveItem = { id -> viewModel.removeBatchItem(id) },
-                onUpdateCropQuad = { id, quad -> viewModel.updateBatchItemCrop(id, quad) },
+                onUpdateCropQuad = { id, quad, rot -> viewModel.updateBatchItemCrop(id, quad, rot) },
                 onClose = { showBatchReview = false },
                 onBatchSaved = { _ ->
                     viewModel.clearBatch()
@@ -1494,19 +1501,86 @@ fun CameraScreen(
             )
         }
 
-        // Single-page Crop Screen when "Crop images after each scan" is enabled
+        // Crop Screen when "Crop images after each scan" is enabled or image captured
         if (pendingCropImagePath != null) {
+            val cropItems = remember(batchQueue, pendingCropImagePath) {
+                val list = batchQueue.map {
+                    com.krinry.scancraft.ui.crop.CropItem(
+                        id = it.id,
+                        imagePath = it.rawFilePath,
+                        initialQuad = it.cropQuad,
+                        rotationDegrees = it.rotationDegrees
+                    )
+                }.toMutableList()
+                val path = pendingCropImagePath!!
+                if (list.none { it.imagePath == path }) {
+                    list.add(com.krinry.scancraft.ui.crop.CropItem(id = 0L, imagePath = path))
+                }
+                list
+            }
+            val initialIdx = (cropItems.size - 1).coerceAtLeast(0)
             CropScreen(
+                items = cropItems,
+                initialIndex = initialIdx,
                 imagePath = pendingCropImagePath!!,
                 docId = docId,
-                onCropConfirmed = { quad ->
-                    viewModel.addDocumentItemFromFile(pendingCropImagePath!!) { newItem ->
-                        viewModel.updateBatchItemCrop(newItem.id, quad)
+                onBatchCropConfirmed = { resultsMap ->
+                    val path = pendingCropImagePath
+                    val hasPendingInResults = path != null && resultsMap.containsKey(0L)
+                    resultsMap.forEach { (id, res) ->
+                        if (id == 0L && path != null) {
+                            viewModel.addDocumentItemFromFile(
+                                filePath = path,
+                                onSuccess = { newItem ->
+                                    viewModel.updateBatchItemCrop(newItem.id, res.quad, res.rotationDegrees)
+                                },
+                                onComplete = {
+                                    pendingCropImagePath = null
+                                }
+                            )
+                        } else {
+                            viewModel.updateBatchItemCrop(id, res.quad, res.rotationDegrees)
+                        }
                     }
-                    pendingCropImagePath = null
+                    if (path != null && !hasPendingInResults) {
+                        viewModel.addDocumentItemFromFile(
+                            filePath = path,
+                            onComplete = {
+                                pendingCropImagePath = null
+                            }
+                        )
+                    } else if (!hasPendingInResults) {
+                        pendingCropImagePath = null
+                    }
+                },
+                onCropConfirmed = { quad ->
+                    val path = pendingCropImagePath
+                    if (path != null) {
+                        viewModel.addDocumentItemFromFile(
+                            filePath = path,
+                            onSuccess = { newItem ->
+                                viewModel.updateBatchItemCrop(newItem.id, quad)
+                            },
+                            onComplete = {
+                                pendingCropImagePath = null
+                            }
+                        )
+                    } else {
+                        pendingCropImagePath = null
+                    }
                 },
                 onClose = {
-                    pendingCropImagePath = null
+                    val path = pendingCropImagePath
+                    if (path != null) {
+                        viewModel.addDocumentItemFromFile(
+                            filePath = path,
+                            onComplete = {
+                                pendingCropImagePath = null
+                            }
+                        )
+                    } else {
+                        pendingCropImagePath = null
+                    }
                 }
             )
         }
