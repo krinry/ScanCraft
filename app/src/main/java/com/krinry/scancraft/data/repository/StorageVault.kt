@@ -78,7 +78,7 @@ object StorageVault {
                 if (!vaultDir.exists()) {
                     vaultDir.mkdirs()
                 }
-                if (vaultDir.exists() && vaultDir.canWrite()) {
+                if (vaultDir.exists() && (hasStoragePermission(context) || vaultDir.canWrite())) {
                     vaultDir
                 } else {
                     resolveFallbackDir(context)

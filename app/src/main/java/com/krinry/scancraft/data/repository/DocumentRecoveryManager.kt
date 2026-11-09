@@ -47,23 +47,35 @@ object DocumentRecoveryManager {
      * Scans Documents/ScanCraft/meta/ and imports all backed up documents atomically.
      */
     suspend fun scanAndRestoreFromVault(context: Context, database: AppDatabase): Int = withContext(Dispatchers.IO) {
-        val metaDir = StorageVault.getMetaDirectory(context)
-        if (!metaDir.exists()) return@withContext 0
+        val publicVaultDir = try {
+            val docs = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS)
+            if (docs != null && docs.isAbsolute) File(docs, StorageVault.VAULT_FOLDER_NAME) else null
+        } catch (_: Throwable) { null }
 
-        val metaFiles = metaDir.listFiles { file -> file.isFile && file.name.endsWith("_meta.json") }
-        if (metaFiles.isNullOrEmpty()) return@withContext 0
+        val candidateMetaDirs = listOfNotNull(
+            StorageVault.getMetaDirectory(context),
+            publicVaultDir?.let { File(it, "meta") }
+        ).distinct().filter { it.exists() }
 
-        val candidateScanDirs = listOf(
+        val metaFiles = candidateMetaDirs.flatMap { dir ->
+            dir.listFiles { file -> file.isFile && file.name.endsWith("_meta.json") }?.toList().orEmpty()
+        }.distinctBy { it.name }
+
+        if (metaFiles.isEmpty()) return@withContext 0
+
+        val candidateScanDirs = listOfNotNull(
             StorageVault.getScansDirectory(context),
+            publicVaultDir?.let { File(it, "scans") },
             File(context.filesDir, "scans"),
             File(context.getExternalFilesDir(null) ?: context.filesDir, "scans")
-        ).filter { it.exists() }
+        ).distinct().filter { it.exists() }
 
-        val candidateThumbDirs = listOf(
+        val candidateThumbDirs = listOfNotNull(
             StorageVault.getThumbsDirectory(context),
+            publicVaultDir?.let { File(it, "thumbs") },
             File(context.filesDir, "thumbs"),
             File(context.getExternalFilesDir(null) ?: context.filesDir, "thumbs")
-        ).filter { it.exists() }
+        ).distinct().filter { it.exists() }
 
         var restoredCount = 0
 
