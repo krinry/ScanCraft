@@ -15,6 +15,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /**
  * Universal Storage Vault for ScanCraft.
@@ -183,13 +185,16 @@ object StorageVault {
                     put("pages", pagesArray)
                 }
 
-                FileOutputStream(tempFile).use { out ->
-                    out.write(json.toString(2).toByteArray(Charsets.UTF_8))
-                    out.flush()
-                }
-
-                if (!tempFile.renameTo(metaFile)) {
-                    tempFile.copyTo(metaFile, overwrite = true)
+                try {
+                    FileOutputStream(tempFile).use { out ->
+                        out.write(json.toString(2).toByteArray(Charsets.UTF_8))
+                        out.flush()
+                    }
+                    Files.move(
+                        tempFile.toPath(), metaFile.toPath(),
+                        StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING
+                    )
+                } finally {
                     tempFile.delete()
                 }
             } catch (_: Exception) {}

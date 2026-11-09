@@ -282,6 +282,19 @@ class StorageVaultRecoveryTest {
     }
 
     @Test
+    fun failedMetadataReplacementPreservesDestinationAndRemovesTemporaryFile() {
+        val metaDir = StorageVault.getMetaDirectory(context)
+        val destination = File(metaDir, "doc_3_meta.json").apply { mkdir() }
+        val sentinel = File(destination, "existing").apply { writeText("preserved") }
+
+        StorageVault.saveDocumentMetadata(context, Document(id = 3L, title = "Updated"), emptyList())
+
+        assertTrue(destination.isDirectory)
+        assertEquals("preserved", sentinel.readText())
+        assertTrue(metaDir.listFiles()!!.none { it.name.startsWith("doc_3_meta.json.tmp_") })
+    }
+
+    @Test
     fun metadataReplacementRemovesStalePagesAndPreservesOtherDocuments() {
         val doc = Document(id = 3L, title = "Old")
         val page = Page(documentId = 3L, pageIndex = 0, processedImagePath = "/old/page.jpg",
@@ -297,6 +310,9 @@ class StorageVaultRecoveryTest {
         assertEquals(0, meta.getInt("pageCount"))
         assertEquals(0, meta.getJSONArray("pages").length())
         assertEquals("", meta.getString("folderName"))
+        assertTrue(StorageVault.getMetaDirectory(context).listFiles()!!.none {
+            it.name.startsWith("doc_3_meta.json.tmp_")
+        })
 
         StorageVault.deleteDocumentMetadata(context, 3L)
         StorageVault.deleteDocumentMetadata(context, 3L)
