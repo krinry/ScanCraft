@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.krinry.scancraft.BuildConfig
 import com.krinry.scancraft.R
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import kotlinx.coroutines.Dispatchers
@@ -450,7 +451,7 @@ fun ProfileScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "ScanCraft v1.0.0",
+                    text = "ScanCraft v${BuildConfig.VERSION_NAME}",
                     color = colors.textMuted,
                     fontSize = 12.sp
                 )
@@ -702,7 +703,7 @@ fun ProfileScreen(
                         modifier = Modifier.size(72.dp).clip(CircleShape)
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("ScanCraft v1.0.0", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    Text("ScanCraft v${BuildConfig.VERSION_NAME}", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         "An offline-first, privacy-focused open source document scanner powered by high-performance clean-room native computer vision.",
@@ -2074,7 +2075,7 @@ fun RealFeedbackDialog(
                         appendLine(feedbackText.ifBlank { "General feedback." })
                         appendLine()
                         appendLine("### Environment Details")
-                        appendLine("- App: ScanCraft v1.0.0")
+                        appendLine("- App: ScanCraft v${BuildConfig.VERSION_NAME}")
                         appendLine("- Android Version: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
                         appendLine("- Device: ${Build.MANUFACTURER} ${Build.MODEL}")
                         appendLine("- Device Brand: ${Build.BRAND}")
